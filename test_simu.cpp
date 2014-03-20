@@ -160,8 +160,8 @@ void printConflict(ExtendedQuadtree& q, GLUquadricObj* pObj, float distance)
     for ( ; it != ie; ++it) { points.push_back((Point*) (*it)); }
   }
 
-  for (int i = 0; i<points.size(); ++i)
-    for (int j = i + 1; j< points.size(); ++j)
+  for (int i = 0; i < q.getPoints().size(); ++i)
+    for (int j = i + 1; j < points.size(); ++j)
       if (points[i]->distance2(*points[j]) < distance)
         printLine(points[i], points[j], pObj);
 }
