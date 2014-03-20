@@ -29,8 +29,10 @@ find_package (GLUT REQUIRED)
 
 option (RUN_IN_VM "Run inside a virtual machine")
 
-# no-deprecated-declarations for OpenGL/GLU and GLUT
-set (CMAKE_CXX_FLAGS "-Wall -Wno-deprecated-declarations")
+if (APPLE)
+  # no-deprecated-declarations for OpenGL/GLU and GLUT
+  set (CMAKE_CXX_FLAGS "-Wall -Wno-deprecated-declarations")
+endif (APPLE)
 
 include_directories (
   ${OPENGL_INCLUDE_DIR}
