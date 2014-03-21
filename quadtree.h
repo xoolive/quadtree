@@ -33,8 +33,8 @@ class Boundary
   }
 
 public:
-//   Boundary() {}
 
+  //! Default constructor
   Boundary(float cx, float cy, float dx, float dy) :
     center_x(cx), center_y(cy), dim_x(dx), dim_y(dy),
     x(NULL), y(NULL), limitfct(NULL) {};
@@ -48,7 +48,8 @@ public:
   //! Max distance between two data in the box
   float norm_l1() { return (dim_x + dim_y); }
 
-  float norm_l2() { return (dim_x * dim_x + dim_y * dim_y); }
+  //! Max distance between two data in the box
+  float sq_norm_l2() { return (dim_x * dim_x + dim_y * dim_y); }
 
   friend class ExtendedQuadtree;
   friend std::ostream& operator<<(std::ostream&, const ExtendedQuadtree&);
@@ -57,8 +58,6 @@ public:
 
 class ExtendedQuadtree
 {
-
-
   // Delimitates the quadrant
   Boundary b;
 
@@ -68,13 +67,13 @@ class ExtendedQuadtree
   // Current level of the quadrant
   int level;
 
-public:
+public: // TODO remove public
   // Level differences with the neighbours
   // 0: adjacent quadrant is of same level
   // 1: adjacent quadrant is of larger level (i.e. smaller in size)
   // 2: adjacent quadrant is out of area
   // -1, ...: adjacent quadrant is of smaller level by -n (i.e. larger in size)
-  int dn, dw, ds, de;
+  int delta[8];
 
   // Children nodes
   ExtendedQuadtree *children[4];
@@ -83,59 +82,19 @@ private:
   // Data attached to the quadrant
   std::list<void*> points;
 
+  // Capacity of each cell
   const int capacity;
 
   // Ancestor
   ExtendedQuadtree* ancestor;
 
-  void updateDN() {
-    if (children[2]->samelevel(NORTH)->children[0] != NULL) children[2]->dn = 1;
-    if (children[3]->samelevel(NORTH)->children[0] != NULL) children[3]->dn = 1;
-  }
+  //! Increments the delta in direction dir
+  //! Returns true if you have children
+  bool incrementDelta(unsigned int dir);
 
-  void updateDS() {
-    if (children[0]->samelevel(SOUTH)->children[0] != NULL) children[0]->ds = 1;
-    if (children[1]->samelevel(SOUTH)->children[0] != NULL) children[1]->ds = 1;
-  }
-
-  void updateDE() {
-    if (children[1]->samelevel(EAST)->children[0] != NULL) children[1]->de = 1;
-    if (children[3]->samelevel(EAST)->children[0] != NULL) children[3]->de = 1;
-  }
-
-  void updateDW() {
-    if (children[0]->samelevel(WEST)->children[0] != NULL) children[0]->dw = 1;
-    if (children[2]->samelevel(WEST)->children[0] != NULL) children[2]->dw = 1;
-  }
-
-  bool incrementDS() {
-    if (ds < 1) ds += 1;
-    if (children[0] == NULL) return false;
-    children[0]->incrementDS();
-    children[1]->incrementDS();
-    return true;
-  }
-  bool incrementDN() {
-    if (dn < 1) dn += 1;
-    if (children[0] == NULL) return false;
-    children[2]->incrementDN();
-    children[3]->incrementDN();
-    return true;
-  }
-  bool incrementDW() {
-    if (dw < 1) dw += 1;
-    if (children[0] == NULL) return false;
-    children[0]->incrementDW();
-    children[2]->incrementDW();
-    return true;
-  }
-  bool incrementDE() {
-    if (de < 1) de += 1;
-    if (children[0] == NULL) return false;
-    children[1]->incrementDE();
-    children[3]->incrementDE();
-    return true;
-  }
+  //! Updates the delta in direction dir if neighbour of same level has
+  //! children nodes
+  void updateDelta(unsigned int dir);
 
 public:
 
@@ -143,9 +102,10 @@ public:
   ExtendedQuadtree(float center_x, float center_y, float dim_x, float dim_y,
                    int capacity) :
     b(center_x, center_y, dim_x, dim_y), location(0), level(0),
-    dn(2), dw(2), ds(2), de(2), capacity(capacity), ancestor(this)
+    /*dn(2), dw(2), ds(2), de(2),*/ capacity(capacity), ancestor(this)
   {
     for (int i = 0; i<4; ++i) children[i] = NULL;
+    for (int i = 0; i<8; ++i) delta[i] = 2;
   }
 
   //! Constructor of a child quadtree
@@ -153,7 +113,7 @@ public:
   ExtendedQuadtree(const ExtendedQuadtree&, int);
 
   //! Find same level neighbour in determined direction
-  ExtendedQuadtree* samelevel(enum Direction) const;
+  ExtendedQuadtree* samelevel(unsigned int) const;
 
   //! Insert one piece of data to the quadrant
   bool insert(void*);
@@ -167,12 +127,13 @@ public:
   //! Sets the getters in the Boundary
   void setXYFcts(float (*x)(void*), float (*y)(void*)) { b.x = x; b.y = y; }
 
-  void setLimitation(bool (*limitation)(Boundary*)) { b.limitfct = limitation; }
+  //! Sets the limitation function; if NULL, behaves as no restriction
+  void setLimitation(bool (*limit)(Boundary*)) { b.limitfct = limit; }
 
   //! Get the location
   std::size_t getLocation() const { return location; }
 
-  //! Get the level
+  //! Get the level, only for debugging purposes
   std::size_t getLevel() const { return level; }
 
   friend std::ostream& operator<<(std::ostream&, const ExtendedQuadtree&);

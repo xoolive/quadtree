@@ -25,21 +25,25 @@ std::ostream& operator<<(std::ostream& os, const ExtendedQuadtree& e)
 {
   for (size_t i=0; i<e.level; ++i) os << "  ";
   os << "{" << std::endl;
+
   for (size_t i=0; i<e.level; ++i) os << "  ";
   os << "  " <<
     e.b.center_x << ", " << e.b.center_y <<
     " (0x" << std::hex << e.location << ") #" << std::dec << e.level << " [" <<
-    e.ds << "," << e.de << "," << e.dn << "," << e.dw << "] -> ";
-  std::list<void*>::const_iterator it = e.points.begin(),
-    ie = e.points.end();
-  for ( ; it != ie; ++it)
-    os << *((Point*)(*it)) << " ";
+    e.delta[EAST] << "," << e.delta[NORTHEAST] << "," <<
+    e.delta[NORTH] << "," << e.delta[NORTHWEST] << "," <<
+    e.delta[WEST] << "," << e.delta[SOUTHWEST] << "," <<
+    e.delta[SOUTH] << "," << e.delta[SOUTHEAST] << "] -> ";
+
+  std::list<void*>::const_iterator it = e.points.begin(), ie = e.points.end();
+  for ( ; it != ie; ++it) os << *((Point*)(*it)) << " ";
   os << std::endl;
+
   if (NULL != e.children[0])
-    os <<
-      *(e.children[0]) << *(e.children[1]) <<
+    os << *(e.children[0]) << *(e.children[1]) <<
       *(e.children[2]) << *(e.children[3]);
   for (size_t i=0; i<e.level; ++i) os << "  ";
+
   os << "}" << std::endl;
   return os;
 }
@@ -61,11 +65,12 @@ int main()
   q.insert(new Point(1.  , 3.  ));
   q.insert(new Point(-2. , 2.  ));
   q.insert(new Point(1.2 , 1.3 ));
+  std::cout << q << std::endl;
   q.insert(new Point(0.1 , 0.3 ));
   q.insert(new Point(0.1 , 0.1 ));
   q.insert(new Point(0.1 , 0.2 ));
 
-  log.message(__LINE__, "Neighbour test in quadtree");
+  log.message(__LINE__, "Tests of neighbourhood in quadtrees");
 
   // Original quadtree at this point
   //
@@ -103,47 +108,92 @@ int main()
   log.testhex(__LINE__, m->samelevel(NORTH)->samelevel(NORTH)->getLocation(),
               0x0e, "m->samelevel(NORTH)->samelevel(NORTH)->getLocation()");
 
-  log.message(__LINE__, "Test of level differences");
+  log.message(__LINE__, "Tests of level differences");
 
-  log.testint(__LINE__, m->ds, -2, "m->ds");
-  log.testint(__LINE__, m->samelevel(SOUTH)->dn, 1, "m->samelevel(SOUTH)->dn");
-  log.testint(__LINE__, m->dn, 0, "m->dn");
-  log.testint(__LINE__, m->samelevel(NORTH)->ds, 0, "m->samelevel(NORTH)->ds");
-  log.testint(__LINE__, m->de, 0, "m->de");
-  log.testint(__LINE__, m->samelevel(EAST)->dw, 0, "m->samelevel(EAST)->dw");
-  log.testint(__LINE__, m->dw, -2, "m->dw");
-  log.testint(__LINE__, m->samelevel(WEST)->de, 1, "m->samelevel(WEST)->de");
+  // Level differences
+  //
+  //  2          2          2 | 2    2   2 | 2    2   2
+  //                          | -1       0 | 0        2
+  //                          | -1   0   0 | 0    0   2
+  //  2                     1 |------------|-----------
+  //                          | -1   0   0 | 0    0   2
+  //                          | -1       0 | 0        2
+  //  2          0          0 | -1  -1  -1 | -1  -1   2
+  // -------------------------|------------|-----------
+  //  2          0          1 | 0          1          2
+  //                          |
+  //                          |
+  //  2                     0 | 0                     2
+  //                          |
+  //                          |
+  //  2          2          2 | 2          2          2
+  //
+
+  log.testint(__LINE__, m->delta[SOUTH], -2, "m->delta[SOUTH]");
+  log.testint(__LINE__, m->samelevel(SOUTH)->delta[NORTH], 1,
+              "m->samelevel(SOUTH)->delta[NORTH]");
+  log.testint(__LINE__, m->delta[NORTH], 0, "m->delta[NORTH]");
+  log.testint(__LINE__, m->samelevel(NORTH)->delta[SOUTH], 0,
+              "m->samelevel(NORTH)->delta[SOUTH]");
+  log.testint(__LINE__, m->delta[EAST], 0, "m->delta[EAST]");
+  log.testint(__LINE__, m->samelevel(EAST)->delta[WEST], 0,
+              "m->samelevel(EAST)->delta[WEST]");
+  log.testint(__LINE__, m->delta[WEST], -2, "m->delta[WEST]");
+  log.testint(__LINE__, m->samelevel(WEST)->delta[EAST], 1,
+              "m->samelevel(WEST)->delta[EAST]");
 
   ExtendedQuadtree* me = q.getQuadrant(0x31, 3);
-  log.testint(__LINE__, me->de, -1, "me->de");
-  log.testint(__LINE__, me->samelevel(EAST)->dw, 1, "me->samelevel(EAST)->dw");
+  log.testint(__LINE__, me->delta[EAST], -1, "me->delta[EAST]");
+  log.testint(__LINE__, me->samelevel(EAST)->delta[WEST], 1,
+              "me->samelevel(EAST)->delta[WEST]");
 
-  log.message(__LINE__, "Test of level differences after further insertion");
+  log.message(__LINE__, "Tests of level differences in diagonal");
+
+  std::cout << q << std::endl;
+
+  log.testint(__LINE__, m->delta[SOUTHWEST], -2, "m->delta[SOUTHWEST]");
+  log.testint(__LINE__, m->samelevel(SOUTHWEST)->delta[NORTHEAST], 1,
+              "m->samelevel(SOUTHWEST)->delta[NORTHEAST]");
+
+  ExtendedQuadtree* mne = m->samelevel(NORTHEAST);
+
+  log.testint(__LINE__, mne->delta[NORTHEAST], -1, "mne->delta[NORTHEAST]");
+  log.testint(__LINE__, mne->samelevel(NORTHEAST)->delta[SOUTHWEST], 1,
+              "mne->samelevel(NORTHEAST)->delta[SOUTHWEST]");
+
+  log.testint(__LINE__, q.getQuadrant(1, 1)->delta[NORTHWEST], 0,
+              "q.getQuadrant(1, 1)->delta[NORTHWEST]");
+  log.testint(__LINE__, q.getQuadrant(2, 1)->delta[SOUTHEAST], 0,
+              "q.getQuadrant(2, 1)->delta[SOUTHEAST]");
+
+  log.message(__LINE__, "Tests of level differences after further insertion");
 
   q.insert(new Point(-1.,  1.));
   q.insert(new Point(-1.2, 1.3));
 
-  log.testint(__LINE__, m->dw, -1, "m->dw");
-  log.testint(__LINE__, m->samelevel(WEST)->de, 1, "m->samelevel(WEST)->de");
+  log.testint(__LINE__, m->delta[WEST], -1, "m->delta[WEST]");
+  log.testint(__LINE__, m->samelevel(WEST)->delta[EAST], 1,
+              "m->samelevel(WEST)->delta[EAST]");
 
   ExtendedQuadtree* mnn = q.getQuadrant(0xe, 2);
-  log.testint(__LINE__, mnn->dw, 0, "m->dw");
-  log.testint(__LINE__, mnn->samelevel(WEST)->de, 0, "mnn->samelevel(WEST)->de");
+  log.testint(__LINE__, mnn->delta[WEST], 0, "m->delta[WEST]");
+  log.testint(__LINE__, mnn->samelevel(WEST)->delta[EAST], 0,
+              "mnn->samelevel(WEST)->delta[EAST]");
 
   q.insert(new Point(-0.7, 0.3));
   q.insert(new Point(-0.4, 0.3));
   q.insert(new Point(-0.1, 0.6));
 
   ExtendedQuadtree* mw = q.getQuadrant(0x25, 3);
-  log.testint(__LINE__, mw->ds, -2, "mw->ds");
-  log.testint(__LINE__, mw->de, 0, "mw->de");
-  log.testint(__LINE__, mw->dn, 0, "mw->dn");
-  log.testint(__LINE__, mw->dw, 0, "mw->dw");
+  log.testint(__LINE__, mw->delta[SOUTH], -2, "mw->delta[SOUTH]");
+  log.testint(__LINE__, mw->delta[EAST], 0, "mw->delta[EAST]");
+  log.testint(__LINE__, mw->delta[NORTH], 0, "mw->delta[NORTH]");
+  log.testint(__LINE__, mw->delta[WEST], 0, "mw->delta[WEST]");
 
-  log.testint(__LINE__, m->dw, 0, "m->dw");
+  log.testint(__LINE__, m->delta[WEST], 0, "m->delta[WEST]");
+
+  // TODO tests diagonal après insertion
+  // verification sur les updateDelta et les increment pas à tous les angles
 
   return log.reportexit();
-// TODO
-// test d'intégration
-// passage à octree
 }
