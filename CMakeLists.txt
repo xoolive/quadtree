@@ -12,6 +12,7 @@ endif (INTEL_COMPILER)
 enable_testing ()
 
 add_executable (test_neighbour
+  neighbour.cpp
   test_neighbour.cpp)
 
 add_test (neighbour
@@ -19,6 +20,7 @@ add_test (neighbour
 
 add_executable (test_quadtree
   test_quadtree.cpp
+  neighbour.cpp
   quadtree.cpp)
 
 add_test (quadtree
@@ -41,6 +43,7 @@ include_directories (
 
 add_executable (test_simu
   test_simu.cpp
+  neighbour.cpp
   quadtree.cpp)
 
 target_link_libraries(test_simu
