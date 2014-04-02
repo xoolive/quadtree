@@ -18,6 +18,7 @@ ExtendedQuadtree* q = NULL;
 float center_x, center_y;
 float zoom;
 int mouse_x, mouse_y, mouse_b, mouse_s;
+unsigned int checkCount = 0;
 
 
 struct Point {
@@ -123,6 +124,7 @@ bool movePoints(void* p) {
 
 void conflict(void* pv1, void* pv2)
 {
+  ++checkCount;
   Point *p1 = (Point*) pv1, *p2 = (Point*) pv2;
   if (p1->distance2(*p2) < 16.)
   {
@@ -261,12 +263,14 @@ void calculateFPS()
     }
     std::cout << "\rfps: " << fps <<
       " size: " << q->getDataSize() <<
-      " depth: " << q->getDepth() << std::flush;
+      " depth: " << q->getDepth() <<
+      " checks: " << checkCount << std::flush;
 }
 
 void onIdle(void) {
 
   q->iterate(movePoints);
+  checkCount = 0;
   q->iterate(conflict);
 
   calculateFPS();
