@@ -4,6 +4,9 @@
 #include <stack>
 #include <vector>
 
+const unsigned char ExtendedQuadtree::diags[] =
+{ SOUTHWEST, SOUTHEAST, NORTHWEST, NORTHEAST };
+
 bool Boundary::contains(float x, float y)
 {
   return ((x < center_x + dim_x + FLT_EPSILON) &&
@@ -13,7 +16,7 @@ bool Boundary::contains(float x, float y)
 }
 
 ExtendedQuadtree*
-ExtendedQuadtree::samelevel(unsigned int dir) const
+ExtendedQuadtree::samelevel(unsigned char dir) const
 {
   if (delta[dir] == 2) return NULL;
   unsigned int newloc = Neighbour::samelevel(location, dir, level);
@@ -21,29 +24,30 @@ ExtendedQuadtree::samelevel(unsigned int dir) const
 }
 
 ExtendedQuadtree*
-ExtendedQuadtree::getQuadrant(std::size_t location, std::size_t l) const
+ExtendedQuadtree::getQuadrant(unsigned long location,
+                              unsigned short depth) const
 {
+  assert(depth < 2048);
   ExtendedQuadtree *quadrant = ancestor, *desc;
-  /*static*/ std::stack<unsigned char> stack;
+  static unsigned char stack[2048];
+  short istack = depth - 1;
 
-  for (size_t i = 0; i < l; i++, location >>= 2)
-    stack.push(location & 3);
-  for (size_t i = 0; i < l; i++)
+  for (unsigned short i = 0; i < depth; i++, location >>= 2)
+    stack[i] = location & 3;
+  for (unsigned short i = 0; i < depth; i++)
   {
-    desc = quadrant->children[stack.top()];
-    if (NULL == desc) {
-      // never much, but avoid memory leaks (see static)
-      // while (!stack.empty()) stack.pop();
+    desc = quadrant->children[stack[istack]];
+    if (NULL == desc)
       return quadrant;
-    }
     quadrant = desc;
-    stack.pop();
+    istack --;
   }
 
   return quadrant;
 }
 
-ExtendedQuadtree::ExtendedQuadtree(const ExtendedQuadtree& e, int direction)
+ExtendedQuadtree::ExtendedQuadtree(const ExtendedQuadtree& e,
+                                   unsigned char subdivision)
   : b(e.b), capacity(e.capacity)
 {
 
@@ -51,71 +55,29 @@ ExtendedQuadtree::ExtendedQuadtree(const ExtendedQuadtree& e, int direction)
 
   for (int i = 0; i<4; ++i) children[i] = NULL;
 
-  location = (e.location << 2) + direction;
+  location = (e.location << 2) + subdivision;
   level    = e.level + 1;
   ancestor = e.ancestor;
 
-  // NSWE updates
-
-  if (direction > 1) // north
-  {
+  if (subdivision > 1) // north
     b.center_y = e.b.center_y + e.b.dim_y / 2.;
-    delta[SOUTH] = 0;
-    delta[NORTH] = (e.delta[NORTH]==2 ? 2 : e.delta[NORTH]-1);
-  }
   else // south
-  {
     b.center_y = e.b.center_y - e.b.dim_y / 2.;
-    delta[NORTH] = 0;
-    delta[SOUTH] = (e.delta[SOUTH]==2 ? 2 : e.delta[SOUTH]-1);
-  }
-  if (((direction) & 1) == 0) // west
-  {
+  if (((subdivision) & 1) == 0) // west
     b.center_x = e.b.center_x - e.b.dim_x / 2.;
-    delta[EAST] = 0;
-    delta[WEST] = (e.delta[WEST]==2 ? 2 : e.delta[WEST]-1);
-  }
   else // east
-  {
     b.center_x = e.b.center_x + e.b.dim_x / 2.;
-    delta[WEST] = 0;
-    delta[EAST] = (e.delta[EAST]==2 ? 2 : e.delta[EAST]-1);
-  }
 
-  // Diagonal updates
-
-  if (direction == 0)
-  {
-    delta[NORTHEAST] = 0;
-    delta[NORTHWEST] = 3;
-    delta[SOUTHWEST] = (e.delta[SOUTHWEST]>1 ? e.delta[SOUTHWEST] :
-                        e.delta[SOUTHWEST]-1);;
-    delta[SOUTHEAST] = 3;
-  }
-  else if (direction == 1)
-  {
-    delta[NORTHWEST] = 0;
-    delta[SOUTHWEST] = 3;
-    delta[SOUTHEAST] = (e.delta[SOUTHEAST]>1 ? e.delta[SOUTHEAST] :
-                        e.delta[SOUTHEAST]-1);
-    delta[NORTHEAST] = 3;
-  }
-  else if (direction == 2)
-  {
-    delta[SOUTHEAST] = 0;
-    delta[NORTHEAST] = 3;
-    delta[NORTHWEST] = (e.delta[NORTHWEST]>1 ? e.delta[NORTHWEST] :
-                        e.delta[NORTHWEST]-1);
-    delta[SOUTHWEST] = 3;
-  }
-  else // direction == 3
-  {
-    delta[SOUTHWEST] = 0;
-    delta[SOUTHEAST] = 3;
-    delta[NORTHEAST] = (e.delta[NORTHEAST]>1 ? e.delta[NORTHEAST] :
-                        e.delta[NORTHEAST]-1);
-    delta[NORTHWEST] = 3;
-  }
+  // Updating delta
+  const unsigned char diag = diags[subdivision];
+  delta[diag] = (e.delta[diag]> 1 ? e.delta[diag] : e.delta[diag]-1);
+  delta[(diag+1)&7] = (e.delta[(diag+1)&7]==2 ? 2 : e.delta[(diag+1)&7]-1);
+  delta[(diag+2)&7] = 3;
+  delta[(diag+3)&7] = 0;
+  delta[(diag+4)&7] = 0;
+  delta[(diag+5)&7] = 0;
+  delta[(diag+6)&7] = 3;
+  delta[(diag+7)&7] = (e.delta[(diag+7)&7]==2 ? 2 : e.delta[(diag+7)&7]-1);
 
   b.dim_x  = e.b.dim_x / 2.;
   b.dim_y  = e.b.dim_y / 2.;
@@ -163,8 +125,8 @@ bool ExtendedQuadtree::insert(void* pt)
 
 }
 
-void ExtendedQuadtree::updateDiagonal(unsigned int diagdir,
-                                      unsigned int dir, int d)
+void ExtendedQuadtree::updateDiagonal(unsigned char diagdir,
+                                      unsigned char dir, int d)
 {
   if (children[0] == NULL)
   {
@@ -209,7 +171,7 @@ void ExtendedQuadtree::updateDiagonal(unsigned int diagdir,
 
 //! Increments the delta in direction dir
 //! Returns true if you have children
-bool ExtendedQuadtree::incrementDelta(unsigned int dir, bool flag)
+bool ExtendedQuadtree::incrementDelta(unsigned char dir, bool flag)
 {
   if (children[0] == NULL)
   {
@@ -255,7 +217,7 @@ bool ExtendedQuadtree::incrementDelta(unsigned int dir, bool flag)
 
 //! Updates the delta in direction dir if neighbour of same level has
 //! children nodes
-void ExtendedQuadtree::updateDelta(unsigned int dir)
+void ExtendedQuadtree::updateDelta(unsigned char dir)
 {
   if ( dir < 3 ) // NORTHEAST corner
     if (children[3]->samelevel(dir)->children[0] != NULL)
@@ -279,10 +241,11 @@ void ExtendedQuadtree::iterate(bool (*apply)(void*))
     children[1]->iterate(apply);
     children[2]->iterate(apply);
     children[3]->iterate(apply);
+    return;
   }
 
   std::list<void*>::iterator it = points.begin(), ie = points.end();
-  for ( ; it != ie; ++it)
+  while ( it != ie )
     if (apply(*it))
       if (!b.contains(*it))
       {
@@ -291,6 +254,8 @@ void ExtendedQuadtree::iterate(bool (*apply)(void*))
         ancestor->insert(*it);
         it = points.erase(it);
       }
+      else ++it;
+    else ++it;
 }
 
 void ExtendedQuadtree::iterate(void (*apply)(void*, void*))
@@ -304,27 +269,81 @@ void ExtendedQuadtree::iterate(void (*apply)(void*, void*))
   }
 
   std::vector<void*> neighbours;
-  std::list<void*>::const_iterator it = points.begin(), ie = points.end();
-  for ( ; it != ie; ++it) { neighbours.push_back((*it)); }
 
   ExtendedQuadtree* nb;
   for (size_t i = 0; i < 4; ++i)
-    if ( (i < 4 && delta[i] < 1) || delta[i] < 0)
+    if (delta[i] < 1) {
+      nb = samelevel(i);
+      neighbours.insert(neighbours.end(),
+                        nb->getPoints().begin(), nb->getPoints().end());
+    }
+  for (size_t i = 4; i < 8; ++i)
+    if (delta[i] < 0)
     {
       nb = samelevel(i);
-      it = nb->getPoints().begin(), ie = nb->getPoints().end();
-      for ( ; it != ie; ++it) { neighbours.push_back((*it)); }
+      neighbours.insert(neighbours.end(),
+                        nb->getPoints().begin(), nb->getPoints().end());
     }
 
-  for (int i = 0; i < points.size(); ++i)
-    for (int j = i+1; j < neighbours.size(); ++j)
-      apply(neighbours[i], neighbours[j]);
+  std::list<void*>::const_iterator it = points.begin(), ie = points.end();
+  for ( ; it != ie ; ++it)
+  {
+    std::list<void*>::const_iterator jt = it; ++jt;
+    for ( ; jt != ie; ++jt)
+      apply(*it, *jt);
+    for (int j = 0; j < neighbours.size(); ++j)
+      apply(*it, neighbours[j]);
+  }
 
 }
 
-std::size_t ExtendedQuadtree::getDataSize() const
+void ExtendedQuadtree::iterateby4(void (*apply)(void*, void*),
+                                  void (*applyby4)(void*, void**))
 {
-  std::size_t size = 0, tmp;
+  if (children[0] != NULL)
+  {
+    children[0]->iterateby4(apply, applyby4);
+    children[1]->iterateby4(apply, applyby4);
+    children[2]->iterateby4(apply, applyby4);
+    children[3]->iterateby4(apply, applyby4);
+  }
+
+  std::vector<void*> neighbours;
+  std::list<void*>::const_iterator it = points.begin(), ie = points.end();
+
+  ExtendedQuadtree* nb;
+  for (size_t i = 0; i < 4; ++i)
+    if (delta[i] < 1) {
+      nb = samelevel(i);
+      it = nb->getPoints().begin(), ie = nb->getPoints().end();
+      neighbours.insert(neighbours.end(),it,ie);
+    }
+  for (size_t i = 4; i < 8; ++i)
+    if (delta[i] < 0)
+    {
+      nb = samelevel(i);
+      it = nb->getPoints().begin(), ie = nb->getPoints().end();
+      neighbours.insert(neighbours.end(),it,ie);
+    }
+
+    for (std::list<void*>::iterator itL = points.begin(); itL != points.end();
+         itL++) {
+      std::list<void*>::iterator jtL = itL;
+      jtL++;
+      for ( ; jtL != points.end(); ++jtL)
+        apply(*itL, *jtL);
+      int j=0;
+      for ( ; j < int(neighbours.size())-3; j+=4)
+        applyby4(*itL, &(neighbours[j]));
+      for( ; j < neighbours.size(); j++)
+        apply(*itL, neighbours[j]);
+    }
+}
+
+
+unsigned long ExtendedQuadtree::getDataSize() const
+{
+  unsigned long size = 0, tmp;
   if (children[0] != NULL)
   {
     tmp = children[0]->getDataSize();
@@ -341,9 +360,9 @@ std::size_t ExtendedQuadtree::getDataSize() const
   return points.size();
 }
 
-std::size_t ExtendedQuadtree::getDepth() const
+unsigned char ExtendedQuadtree::getDepth() const
 {
-  std::size_t depth = 0, tmp;
+  unsigned char depth = 0, tmp;
   if (children[0] != NULL)
   {
     tmp = children[0]->getDepth();

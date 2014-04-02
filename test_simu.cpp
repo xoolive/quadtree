@@ -44,7 +44,7 @@ struct Point {
     neighbours.clear();
   }
 
-  float distance2 (Point p) {
+  float distance2 (const Point& p) const {
     return (p.x - x) * (p.x - x) + (p.y - y) * (p.y - y);
   }
 
@@ -134,6 +134,47 @@ void conflict(void* pv1, void* pv2)
   }
 }
 
+#ifdef __INTEL_COMPILER
+#include <fvec.h>
+void conflictby4(void* pv1, void** ppv2)
+{
+  assert(ppv2 != NULL);
+  checkCount += 1;
+  Point *p1   = (Point*) pv1;
+  Point** pp2 = (Point**)ppv2;
+  F32vec4 p1x(p1->x);
+  F32vec4 p1y(p1->y);
+  F32vec4 p2x(pp2[3]->x, pp2[2]->x, pp2[1]->x, pp2[0]->x);
+  F32vec4 p2y(pp2[3]->y, pp2[2]->y, pp2[1]->y, pp2[0]->y);
+  F32vec4 dx = (p1x-p2x);
+  F32vec4 dy = (p1y-p2y);
+  F32vec4 dist = dx*dx + dy*dy;
+  if (dist[0] < 16.)
+  {
+    p1->draw = true;
+    pp2[0]->draw = true;
+    p1->neighbours.push_back(pp2[0]);
+  }
+  if (dist[1] < 16.)
+  {
+    p1->draw = true;
+    pp2[1]->draw = true;
+    p1->neighbours.push_back(pp2[1]);
+  }
+  if (dist[2] < 16.)
+  {
+    p1->draw = true;
+    pp2[2]->draw = true;
+    p1->neighbours.push_back(pp2[2]);
+  }
+  if (dist[3] < 16.)
+  {
+    p1->draw = true;
+    pp2[3]->draw = true;
+    p1->neighbours.push_back(pp2[3]);
+  }
+}
+#endif
 
 void onDisplay(void)
 {
@@ -263,7 +304,7 @@ void calculateFPS()
     }
     std::cout << "\rfps: " << fps <<
       " size: " << q->getDataSize() <<
-      " depth: " << q->getDepth() <<
+      " depth: " << (int) q->getDepth() <<
       " checks: " << checkCount << std::flush;
 }
 
@@ -271,8 +312,11 @@ void onIdle(void) {
 
   q->iterate(movePoints);
   checkCount = 0;
+#ifdef __INTEL_COMPILER
+  q->iterateby4(conflict, conflictby4);
+#else
   q->iterate(conflict);
-
+#endif
   calculateFPS();
   glutPostRedisplay();
 }
@@ -305,7 +349,7 @@ int main(int argc, char* argv[])
   q->setXYFcts(getX, getY);
   q->setLimitation(limitation);
 
-  for (int i = 0; i< 10000; ++i)
+  for (int i = 0; i< 20000; ++i)
     q->insert(new Point((((float) rand())/ (float) RAND_MAX) * width,
                         (((float) rand())/ (float) RAND_MAX) * height));
 

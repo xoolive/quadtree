@@ -3,7 +3,6 @@
 
 #include <list>
 #include <cassert>
-#include <cstddef> // size_t
 #include <cstdlib> // NULL
 #include <iostream>
 
@@ -84,56 +83,62 @@ class ExtendedQuadtree
   // Children nodes
   ExtendedQuadtree *children[4];
 
+  // Directions corresponding to children nodes
+  static const unsigned char diags[4];
+
   // Data attached to the quadrant
   std::list<void*> points;
 
   // Capacity of each cell
-  const int capacity;
+  const unsigned int capacity;
 
   // Ancestor
   ExtendedQuadtree* ancestor;
 
   //! Increments the delta in direction dir
   //! Returns true if you have children
-  bool incrementDelta(unsigned int dir, bool flag = true);
+  bool incrementDelta(unsigned char dir, bool flag = true);
 
   //! Update the no more non reflexive delta
-  void updateDiagonal(unsigned int diagdir, unsigned int dir, int delta);
+  void updateDiagonal(unsigned char diagdir, unsigned char dir, int delta);
 
   //! Updates the delta in direction dir if neighbour of same level has
   //! children nodes
-  void updateDelta(unsigned int dir);
+  void updateDelta(unsigned char dir);
 
 public:
 
   //! Constructor
   ExtendedQuadtree(float center_x, float center_y, float dim_x, float dim_y,
-                   int capacity) :
+                   unsigned int capacity) :
     b(center_x, center_y, dim_x, dim_y), location(0), level(0),
     capacity(capacity), ancestor(this)
   {
-    for (int i = 0; i<4; ++i) children[i] = NULL;
-    for (int i = 0; i<8; ++i) delta[i] = 2;
+    children[0] = NULL; children[1] = NULL;
+    children[2] = NULL; children[3] = NULL;
+    delta[0] = 2; delta[1] = 2; delta[2] = 2; delta[3] = 2;
+    delta[4] = 2; delta[5] = 2; delta[6] = 2; delta[7] = 2;
   }
 
   //! Constructor of a child quadtree
   // SW -> 0, SE -> 1, NW -> 2, NE -> 3
-  ExtendedQuadtree(const ExtendedQuadtree&, int);
+  ExtendedQuadtree(const ExtendedQuadtree&, unsigned char);
 
   //! Find same level neighbour in determined direction
-  ExtendedQuadtree* samelevel(unsigned int) const;
+  ExtendedQuadtree* samelevel(unsigned char) const;
 
   //! Insert one piece of data to the quadrant
   bool insert(void*);
 
   //! Returns the subquadrant pointed by location code
-  ExtendedQuadtree* getQuadrant(std::size_t location, std::size_t level) const;
+  ExtendedQuadtree* getQuadrant(unsigned long location,
+                                unsigned short level) const;
 
   //! Returns the data embedded to current quadrant
   inline const std::list<void*>& getPoints() const { return points; }
 
   //! Returns a point to the proper child 0->SW, 1->SE, 2->NW, 3->NE
-  inline const ExtendedQuadtree* getChild(unsigned int i) const
+  inline const ExtendedQuadtree* getChild(unsigned char i) const
   {
     assert (i<4);
     return children[i];
@@ -152,16 +157,16 @@ public:
   }
 
   //! Get the location
-  inline std::size_t getLocation() const { return location; }
+  inline unsigned long getLocation() const { return location; }
 
   //! Get the level, only for debugging purposes
-  inline std::size_t getLevel() const { return level; }
+  inline unsigned char getLevel() const { return level; }
 
   //! Get the max size of children data lists
-  std::size_t getDataSize() const;
+  unsigned long getDataSize() const;
 
   //! Get the depth of the quadtree
-  std::size_t getDepth() const;
+  unsigned char getDepth() const;
 
   //! Iterate something for all items
   //! Adjusts the quadtree if the items move
@@ -169,6 +174,9 @@ public:
 
   //! Iterate something for all pairs of items
   void iterate(void (*apply)(void*, void*));
+
+  //! Iterate some function for all pairs of items, vectorised version
+  void iterateby4(void (*apply)(void*, void*), void (*applyby4)(void*,void**));
 
   friend std::ostream& operator<<(std::ostream&, const ExtendedQuadtree&);
   friend class Test_ExtendedQuadtree;
