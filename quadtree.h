@@ -2,6 +2,7 @@
 #define QUADTREE_H
 
 #include <list>
+#include <cassert>
 #include <cstddef> // size_t
 #include <cstdlib> // NULL
 #include <iostream>
@@ -27,9 +28,13 @@ class Boundary
   // Give some limitation to the size of the cells
   bool (*limitfct)(Boundary*);
 
+  // Store the result of limitation in order to avoid recomputation
+  bool limit;
+
   bool limitation() {
     if (limitfct == NULL) return false;
-    return limitfct(this);
+    bool limit = limitfct(this);
+    return limit;
   }
 
 public:
@@ -43,19 +48,20 @@ public:
   bool contains(float x, float y);
 
   //! Is this data included in the box?
-  bool contains(void* pt) { return contains(x(pt), y(pt)); }
+  inline bool contains(void* pt) { return contains(x(pt), y(pt)); }
+
+  //! L1 norm
+  inline float norm_l1() { return (dim_x + dim_y); }
 
   //! Max distance between two data in the box
-  float norm_l1() { return (dim_x + dim_y); }
-
-  //! Max distance between two data in the box
-  float sq_norm_l2() { return (dim_x * dim_x + dim_y * dim_y); }
+  inline float norm_infty() { return (dim_x < dim_y ? dim_x : dim_y); }
 
   friend class ExtendedQuadtree;
   friend std::ostream& operator<<(std::ostream&, const ExtendedQuadtree&);
 
 };
 
+class Test_ExtendedQuadtree;
 class ExtendedQuadtree
 {
   // Delimitates the quadrant
@@ -67,18 +73,17 @@ class ExtendedQuadtree
   // Current level of the quadrant
   int level;
 
-public: // TODO remove public
   // Level differences with the neighbours
   // 0: adjacent quadrant is of same level
   // 1: adjacent quadrant is of larger level (i.e. smaller in size)
   // 2: adjacent quadrant is out of area
+  // 3: adjacency is not reflexive (diagonal)
   // -1, ...: adjacent quadrant is of smaller level by -n (i.e. larger in size)
   int delta[8];
 
   // Children nodes
   ExtendedQuadtree *children[4];
 
-private:
   // Data attached to the quadrant
   std::list<void*> points;
 
@@ -90,7 +95,10 @@ private:
 
   //! Increments the delta in direction dir
   //! Returns true if you have children
-  bool incrementDelta(unsigned int dir);
+  bool incrementDelta(unsigned int dir, bool flag = true);
+
+  //! Update the no more non reflexive delta
+  void updateDiagonal(unsigned int diagdir, unsigned int dir, int delta);
 
   //! Updates the delta in direction dir if neighbour of same level has
   //! children nodes
@@ -102,7 +110,7 @@ public:
   ExtendedQuadtree(float center_x, float center_y, float dim_x, float dim_y,
                    int capacity) :
     b(center_x, center_y, dim_x, dim_y), location(0), level(0),
-    /*dn(2), dw(2), ds(2), de(2),*/ capacity(capacity), ancestor(this)
+    capacity(capacity), ancestor(this)
   {
     for (int i = 0; i<4; ++i) children[i] = NULL;
     for (int i = 0; i<8; ++i) delta[i] = 2;
@@ -122,21 +130,48 @@ public:
   ExtendedQuadtree* getQuadrant(std::size_t location, std::size_t level) const;
 
   //! Returns the data embedded to current quadrant
-  const std::list<void*>& getPoints() const { return points; }
+  inline const std::list<void*>& getPoints() const { return points; }
+
+  //! Returns a point to the proper child 0->SW, 1->SE, 2->NW, 3->NE
+  inline const ExtendedQuadtree* getChild(unsigned int i) const
+  {
+    assert (i<4);
+    return children[i];
+  }
 
   //! Sets the getters in the Boundary
-  void setXYFcts(float (*x)(void*), float (*y)(void*)) { b.x = x; b.y = y; }
+  inline void setXYFcts(float (*x)(void*), float (*y)(void*))
+  { b.x = x; b.y = y; }
 
   //! Sets the limitation function; if NULL, behaves as no restriction
-  void setLimitation(bool (*limit)(Boundary*)) { b.limitfct = limit; }
+  inline void setLimitation(bool (*limit)(Boundary*))
+  {
+    assert(limit != NULL);
+    b.limitfct = limit;
+    b.limit = b.limitation();
+  }
 
   //! Get the location
-  std::size_t getLocation() const { return location; }
+  inline std::size_t getLocation() const { return location; }
 
   //! Get the level, only for debugging purposes
-  std::size_t getLevel() const { return level; }
+  inline std::size_t getLevel() const { return level; }
+
+  //! Get the max size of children data lists
+  std::size_t getDataSize() const;
+
+  //! Get the depth of the quadtree
+  std::size_t getDepth() const;
+
+  //! Iterate something for all items
+  //! Adjusts the quadtree if the items move
+  void iterate(bool (*apply)(void*));
+
+  //! Iterate something for all pairs of items
+  void iterate(void (*apply)(void*, void*));
 
   friend std::ostream& operator<<(std::ostream&, const ExtendedQuadtree&);
+  friend class Test_ExtendedQuadtree;
 
 };
 
