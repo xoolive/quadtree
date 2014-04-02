@@ -18,15 +18,15 @@ int main() {
   log.testint(__LINE__, Neighbour::samelevel(1, EAST, 1), 4,
               "samelevel(1, EAST, 1)");
 
-  log.testhex(__LINE__, Neighbour::samelevel(0x3a, EAST, 3)      , 0x3b,
+  log.testhex(__LINE__, Neighbour::samelevel(0x3a, EAST, 3)     , 0x3b,
               "samelevel(0x3a, EAST, 3)     ");
-  log.testhex(__LINE__, Neighbour::samelevel(0x3a, WEST, 3)      , 0x2f,
+  log.testhex(__LINE__, Neighbour::samelevel(0x3a, WEST, 3)     , 0x2f,
               "samelevel(0x3a, WEST, 3)     ");
-  log.testhex(__LINE__, Neighbour::samelevel(0x3a, SOUTHWEST, 3) , 0x2d,
+  log.testhex(__LINE__, Neighbour::samelevel(0x3a, SOUTHWEST, 3), 0x2d,
               "samelevel(0x3a, SOUTHWEST, 3)");
-  log.testhex(__LINE__, Neighbour::samelevel(0x3a, SOUTH, 3)     , 0x38,
+  log.testhex(__LINE__, Neighbour::samelevel(0x3a, SOUTH, 3)    , 0x38,
               "samelevel(0x3a, SOUTH, 3)    ");
-  log.testhex(__LINE__, Neighbour::samelevel(0x3a, SOUTHEAST, 3) , 0x39,
+  log.testhex(__LINE__, Neighbour::samelevel(0x3a, SOUTHEAST, 3), 0x39,
               "samelevel(0x3a, SOUTHEAST, 3)");
 
   log.testhex(__LINE__, Neighbour::samelevel(0x66, WEST, 4),      0x63,
@@ -46,15 +46,15 @@ int main() {
   log.testhex(__LINE__, Neighbour::samelevel(0x66, NORTHWEST, 4), 0x69,
               "samelevel(0x66, NORTHWEST, 4)");
 
-  log.testhex(__LINE__, Neighbour::samelevel(0x3a, EAST, 3)      , 0x3b,
+  log.testhex(__LINE__, Neighbour::samelevel(0x3a, EAST, 3)     , 0x3b,
               "samelevel(0x3a, EAST, 3)      ");
-  log.testhex(__LINE__, Neighbour::samelevel(0x3a, WEST, 3)      , 0x2f,
+  log.testhex(__LINE__, Neighbour::samelevel(0x3a, WEST, 3)     , 0x2f,
               "samelevel(0x3a, WEST, 3)      ");
-  log.testhex(__LINE__, Neighbour::samelevel(0x3a, SOUTHWEST, 3) , 0x2d,
+  log.testhex(__LINE__, Neighbour::samelevel(0x3a, SOUTHWEST, 3), 0x2d,
               "samelevel(0x3a, SOUTHWEST, 3) ");
-  log.testhex(__LINE__, Neighbour::samelevel(0x3a, SOUTH, 3)     , 0x38,
+  log.testhex(__LINE__, Neighbour::samelevel(0x3a, SOUTH, 3)    , 0x38,
               "samelevel(0x3a, SOUTH, 3)     ");
-  log.testhex(__LINE__, Neighbour::samelevel(0x3a, SOUTHEAST, 3) , 0x39,
+  log.testhex(__LINE__, Neighbour::samelevel(0x3a, SOUTHEAST, 3), 0x39,
               "samelevel(0x3a, SOUTHEAST, 3) ");
 
   log.testint(__LINE__, Neighbour::samelevel(1, NORTH, 1), 3,

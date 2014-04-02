@@ -4,8 +4,9 @@
 #include <GL/glut.h>
 #endif
 
-#include <cstdlib>
 #include <cfloat>
+#include <cstdlib>
+
 #include <iostream>
 #include <vector>
 
@@ -21,11 +22,26 @@ int mouse_x, mouse_y, mouse_b, mouse_s;
 
 struct Point {
 
-  float x, y;
+  float x, y, vx, vy;
   bool draw;
   std::list<Point*> neighbours;
 
-  Point(float x, float y) : x(x), y(y), draw(false) {}
+  Point(float x, float y) : x(x), y(y), draw(false)
+  {
+    vx = (((float) rand())/ (float) RAND_MAX) - 0.5;
+    vy = (((float) rand())/ (float) RAND_MAX) - 0.5;
+  }
+
+  void iterate() {
+    x += vx;
+    y += vy;
+    if (x < 0) { x = -x; vx = -vx; }
+    if (y < 0) { y = -y; vy = -vy; }
+    if (x > width) { vx = -vx; x += vx; }
+    if (y > height) { vy = -vy; y += vy; }
+    draw = false;
+    neighbours.clear();
+  }
 
   float distance2 (Point p) {
     return (p.x - x) * (p.x - x) + (p.y - y) * (p.y - y);
@@ -37,7 +53,7 @@ float getX(void* p) { return ((Point*) p)->x; }
 float getY(void* p) { return ((Point*) p)->y; }
 
 bool limitation(Boundary* b) {
-  static float sq_size = b->sq_norm_l2();
+  float sq_size = b->norm_infty();
   return (sq_size < (16. + FLT_EPSILON));
 }
 
@@ -60,116 +76,60 @@ std::ostream& operator<<(std::ostream& os, const ExtendedQuadtree& e)
   for ( ; it != ie; ++it)
     os << *((Point*)(*it)) << " ";
   os << std::endl;
-  if (NULL != e.children[0])
+  if (NULL != e.getChild(0))
     os <<
-      *(e.children[0]) << *(e.children[1]) <<
-      *(e.children[2]) << *(e.children[3]);
+      *(e.getChild(0)) << *(e.getChild(1)) <<
+      *(e.getChild(2)) << *(e.getChild(3));
   for (size_t i=0; i<e.level; ++i) os << "  ";
   os << "}" << std::endl;
   return os;
 }
 
-void printPoint(void* v, GLUquadricObj *pObj, int r, int g, int b)
+bool printQuadtree(void* it)
 {
-  Point* p = (Point*) v;
-  glPushMatrix();
-  {
-    glTranslatef(p->x, p->y, 0);
-    glColor3ub(r, g, b);
-    gluDisk(pObj, 0, 1, 10, 3);
-  }
-  glPopMatrix();
-}
+  Point* p = (Point*)(it);
+  if (p->draw)
+    glColor3ub(185, 95, 86);
+  else
+    glColor3ub(65, 65, 65);
 
-void printLine(void* v1, void* v2, GLUquadricObj* pObj)
-{
-  Point* p1 = (Point*) v1;
-  Point* p2 = (Point*) v2;
-
-  glColor3ub(185, 95, 86);
-  glLineWidth(1);
-  glBegin(GL_LINES);
+  glBegin(GL_POINTS);
   {
-    glVertex3f(p1->x, p1->y, 1);
-    glVertex3f(p2->x, p2->y, 1);
+    glVertex3f(p->x, p->y, 1);
   }
   glEnd();
+
+  std::list<Point*>::iterator pit = p->neighbours.begin(),
+    pend = p->neighbours.end();
+  for ( ; pit != pend; ++pit)
+  {
+    glColor3ub(185, 95, 86);
+    glBegin(GL_LINES);
+    {
+      glVertex3f(p->x, p->y, 1);
+      glVertex3f((*pit)->x, (*pit)->y, 1);
+    }
+    glEnd();
+  }
+  // does not modify the quadtree
+  return false;
 }
 
-void printQuadtree(ExtendedQuadtree& e, GLUquadricObj* pObj)
-{
-  std::list<void*>::const_iterator it = e.getPoints().begin(),
-    ie = e.getPoints().end();
-  for ( ; it != ie; ++it) {
-    Point* p = (Point*)(*it);
-    if (p->draw)
-      printPoint(*it, pObj, 185, 95, 86);
-    else
-      printPoint(*it, pObj, 65, 65, 65);
-    std::list<Point*>::iterator pit = p->neighbours.begin(),
-      pend = p->neighbours.end();
-    for ( ; pit != pend; ++pit)
-      printLine(p, *pit, pObj);
-  }
-  if (e.children[0] != NULL)
-  {
-    printQuadtree(*(e.children[0]), pObj);
-    printQuadtree(*(e.children[1]), pObj);
-    printQuadtree(*(e.children[2]), pObj);
-    printQuadtree(*(e.children[3]), pObj);
-  }
+bool movePoints(void* p) {
+  ((Point*) p)->iterate();
+  // may modify the quadtree
+  return true;
 }
 
-void computeConflict(ExtendedQuadtree& q, float distance)
+void conflict(void* pv1, void* pv2)
 {
-  if (q.children[0] != NULL)
+  Point *p1 = (Point*) pv1, *p2 = (Point*) pv2;
+  if (p1->distance2(*p2) < 16.)
   {
-    computeConflict(*(q.children[0]), distance);
-    computeConflict(*(q.children[1]), distance);
-    computeConflict(*(q.children[2]), distance);
-    computeConflict(*(q.children[3]), distance);
+    p1->draw = true;
+    p2->draw = true;
+    p1->neighbours.push_back(p2);
   }
-
-  std::vector<Point*> points;
-  std::vector<float> _x, _y;
-  std::list<void*>::const_iterator it = q.getPoints().begin(),
-    ie = q.getPoints().end();
-  for ( ; it != ie; ++it) { points.push_back((Point*) (*it)); }
-
-  ExtendedQuadtree* nb;
-  if (q.delta[SOUTH] < 0)
-  {
-    nb = q.samelevel(SOUTH);
-    it = nb->getPoints().begin(), ie = nb->getPoints().end();
-    for ( ; it != ie; ++it) { points.push_back((Point*) (*it)); }
-  }
-  if (q.delta[EAST] < 1)
-  {
-    nb = q.samelevel(EAST);
-    it = nb->getPoints().begin(), ie = nb->getPoints().end();
-    for ( ; it != ie; ++it) { points.push_back((Point*) (*it)); }
-  }
-  if (q.delta[NORTH] < 1)
-  {
-    nb = q.samelevel(NORTH);
-    it = nb->getPoints().begin(), ie = nb->getPoints().end();
-    for ( ; it != ie; ++it) { points.push_back((Point*) (*it)); }
-  }
-  if (q.delta[WEST] < 0)
-  {
-    nb = q.samelevel(WEST);
-    it = nb->getPoints().begin(), ie = nb->getPoints().end();
-    for ( ; it != ie; ++it) { points.push_back((Point*) (*it)); }
-  }
-
-  for (int i = 0; i < q.getPoints().size(); ++i)
-    for (int j = i + 1; j < points.size(); ++j)
-      if (points[i]->distance2(*points[j]) < distance)
-      {
-        points[i]->draw = true;
-        points[j]->draw = true;
-        points[i]->neighbours.push_back(points[j]);
-      }
 }
 
 
@@ -177,6 +137,7 @@ void onDisplay(void)
 {
   glClearColor(1., 1., 1., 0);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  glEnable(GL_DEPTH_TEST);
 
   glViewport(0,0,width,height);
 
@@ -191,9 +152,26 @@ void onDisplay(void)
             center_x, center_y, 0., // view
             0.0, 1.0, 0.0); // upvector
 
-  GLUquadricObj* obj = gluNewQuadric();
-  printQuadtree(*q, obj);
-  gluDeleteQuadric(obj);
+  glPointSize(4.f);
+  glLineWidth(1.f);
+  q->iterate(printQuadtree);
+
+  // The lines for the first subdivision of the quadtree
+  glColor3ub(200, 200, 200);
+  glLineWidth(.000000000001f);
+  glBegin(GL_LINES);
+  {
+    glVertex3f(0, height/2, 0);
+    glVertex3f(width, height/2, 0);
+  }
+  glEnd();
+  glBegin(GL_LINES);
+  {
+    glVertex3f(width/2, 0, 0);
+    glVertex3f(width/2, height, 0);
+  }
+  glEnd();
+
 
   glutSwapBuffers();
 
@@ -260,12 +238,40 @@ void onKeyboard(unsigned char key, int x, int y)
     break;
   case 'q':
   case 27: // ESC
+    std::cout << std::endl;
     exit (EXIT_SUCCESS);
   }
 
 }
+unsigned long frameCount, fps;
+unsigned long currentTime, previousTime;
 
-void onIdle(void) { glutPostRedisplay(); }
+void calculateFPS()
+{
+    frameCount++;
+    //  Get the number of milliseconds since glutInit called
+    currentTime = glutGet(GLUT_ELAPSED_TIME);
+    int timeInterval = currentTime - previousTime;
+
+    if (timeInterval > 1000)
+    {
+        fps = frameCount / (timeInterval / 1000.0f);
+        previousTime = currentTime;
+        frameCount = 0;
+    }
+    std::cout << "\rfps: " << fps <<
+      " size: " << q->getDataSize() <<
+      " depth: " << q->getDepth() << std::flush;
+}
+
+void onIdle(void) {
+
+  q->iterate(movePoints);
+  q->iterate(conflict);
+
+  calculateFPS();
+  glutPostRedisplay();
+}
 
 
 int main(int argc, char* argv[])
@@ -290,17 +296,15 @@ int main(int argc, char* argv[])
   glutIdleFunc(onIdle);
 
   q = new ExtendedQuadtree((float) width/2., (float) height/2.,
-                           (float) width/2., (float) height/2., 12);
+                           (float) width/2., (float) height/2., 16);
 
   q->setXYFcts(getX, getY);
   q->setLimitation(limitation);
 
-
-  for (int i = 0; i< 40000; ++i)
+  for (int i = 0; i< 10000; ++i)
     q->insert(new Point((((float) rand())/ (float) RAND_MAX) * width,
                         (((float) rand())/ (float) RAND_MAX) * height));
 
-  computeConflict(*q, 16.);
 
   glutMainLoop();
   return EXIT_SUCCESS;
