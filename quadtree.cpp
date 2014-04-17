@@ -31,7 +31,7 @@ void PolygonMask::precompute()
 }
 
 PolygonMask::PolygonMask(std::vector<float> x, std::vector<float> y,
-                         int size) : polyX(x), polyY(y), size(size)
+                         int size) : size(size), polyX(x), polyY(y)
 { precompute(); }
 
 bool PolygonMask::pointInPolygon(float x, float y) const
@@ -42,7 +42,7 @@ bool PolygonMask::pointInPolygon(float x, float y) const
 
   for (i = 0; i < size; i++)
   {
-    if ((polyY[i] < y && polyY[j] >= y || polyY[j] < y && polyY[i] >= y))
+    if ((polyY[i] < y && polyY[j] >= y) || (polyY[j] < y && polyY[i] >= y))
       oddNodes ^= (y*multiple[i] + constant[i] < x);
     j=i;
   }
@@ -84,7 +84,7 @@ PolygonMask PolygonMask::clip(const Boundary& box) const
     xIn = xOut; yIn = yOut; xOut.clear(); yOut.clear();
     float xfrom = xIn.back(), yfrom = yIn.back();
     std::vector<float>::iterator xpoly = xIn.begin(), ypoly = yIn.begin();
-    std::vector<float>::iterator xend = xIn.end(), yend = yIn.end();
+    std::vector<float>::iterator xend = xIn.end();
 
     // for each edge of the polygon
     for ( ; xpoly != xend ; ++xpoly, ++ypoly)
