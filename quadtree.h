@@ -5,10 +5,38 @@
 #include <cassert>
 #include <cstdlib> // NULL
 #include <iostream>
+#include <vector>
 
 #include "neighbour.h"
 
 class ExtendedQuadtree;
+class Boundary;
+
+class PolygonMask
+{
+private:
+  int size;
+  std::vector<float> polyX, polyY;
+  std::vector<float> constant, multiple;
+
+  // see http://alienryderflex.com/polygon/
+  void precompute();
+
+public:
+
+  PolygonMask(std::vector<float> x, std::vector<float> y, int size);
+
+  int getSize() const { return size; }
+
+  // see http://alienryderflex.com/polygon/
+  bool pointInPolygon(float x, float y) const;
+
+  // see http://en.wikipedia.org/wiki/Sutherland%E2%80%93Hodgman_algorithm
+  PolygonMask clip(const Boundary& box) const;
+
+  friend class Test_PolygonMask;
+
+};
 
 class Boundary
 {
@@ -36,6 +64,8 @@ class Boundary
     return limit;
   }
 
+  int coveredByPolygon(const PolygonMask& m);
+
 public:
 
   //! Default constructor
@@ -54,6 +84,20 @@ public:
 
   //! Max distance between two data in the box
   inline float norm_infty() { return (dim_x < dim_y ? dim_x : dim_y); }
+
+  bool leftOf(float x, float y) const { return (x < center_x - dim_x - 1e-4); }
+  bool rightOf(float x, float y) const { return (x > center_x + dim_x + 1e-4); }
+  bool bottomOf(float x, float y) const { return (y < center_y - dim_y - 1e-4); }
+  bool upOf(float x, float y) const { return (y > center_y + dim_y + 1e-4); }
+
+  void interLeft(float, float, float, float, float&, float&);
+  void interRight(float, float, float, float, float&, float&);
+  void interBottom(float, float, float, float, float&, float&);
+  void interUp(float, float, float, float, float&, float&);
+
+  typedef bool (Boundary::*OUTSIDE_TEST) (float, float) const;
+  typedef bool (Boundary::*INTERSECT)
+    (float, float, float, float, float&, float&) const;
 
   friend class ExtendedQuadtree;
   friend std::ostream& operator<<(std::ostream&, const ExtendedQuadtree&);
@@ -170,6 +214,7 @@ public:
 
   //! Iterate something for all items
   //! Adjusts the quadtree if the items move
+  void iterate(const PolygonMask& m, bool (*apply)(void*));
   void iterate(bool (*apply)(void*));
 
   //! Iterate something for all pairs of items

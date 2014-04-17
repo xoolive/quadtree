@@ -3,6 +3,8 @@
 
 #include <sstream>
 #include <iostream>
+#include <cmath>
+#include <cfloat>
 
 class Logger
 {
@@ -23,6 +25,17 @@ public:
     out << line << ":\t" <<
       "a=" << a <<"; b=" << b  << "\t" << message << std::endl;
     if (a != b)
+    {
+      out << "ERROR ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ ERROR\n";
+      nbError += 1;
+    }
+  }
+
+  void testfloat (int line, float a, float b, std::string message)
+  {
+    out << line << ":\t" <<
+      "a=" << a <<"; b=" << b  << "\t" << message << std::endl;
+    if (fabs(a - b) < FLT_EPSILON)
     {
       out << "ERROR ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ ERROR\n";
       nbError += 1;

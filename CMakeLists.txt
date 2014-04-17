@@ -26,6 +26,15 @@ add_executable (test_quadtree
 add_test (quadtree
   test_quadtree)
 
+add_executable (test_clipping
+  test_clipping.cpp
+  neighbour.cpp
+  quadtree.cpp)
+
+add_test(clipping
+  test_clipping)
+
+
 find_package (OpenGL REQUIRED)
 find_package (GLUT REQUIRED)
 

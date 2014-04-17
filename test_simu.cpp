@@ -19,15 +19,16 @@ float center_x, center_y;
 float zoom;
 int mouse_x, mouse_y, mouse_b, mouse_s;
 unsigned int checkCount = 0;
+PolygonMask* mask;
 
 
 struct Point {
 
   float x, y, vx, vy;
-  bool draw;
+  bool draw, green;
   std::list<Point*> neighbours;
 
-  Point(float x, float y) : x(x), y(y), draw(false)
+  Point(float x, float y) : x(x), y(y), draw(false), green(false)
   {
     vx = (((float) rand())/ (float) RAND_MAX) - 0.5;
     vy = (((float) rand())/ (float) RAND_MAX) - 0.5;
@@ -89,10 +90,16 @@ std::ostream& operator<<(std::ostream& os, const ExtendedQuadtree& e)
 bool printQuadtree(void* it)
 {
   Point* p = (Point*)(it);
+
+  if (p->green)
+    glColor3ub(86, 185, 95);
+  else {
   if (p->draw)
     glColor3ub(185, 95, 86);
   else
     glColor3ub(65, 65, 65);
+
+  }
 
   glBegin(GL_POINTS);
   {
@@ -132,6 +139,16 @@ void conflict(void* pv1, void* pv2)
     p2->draw = true;
     p1->neighbours.push_back(p2);
   }
+}
+
+bool greenify(void* p) {
+  ((Point*) p)->green = true;
+  return false;
+}
+
+bool ungreenify(void* p) {
+  ((Point*) p)->green = false;
+  return false;
 }
 
 #ifdef __INTEL_COMPILER
@@ -279,6 +296,10 @@ void onKeyboard(unsigned char key, int x, int y)
     zoom *= 0.9;
     if (zoom < 100) zoom = 100;
     break;
+  case 'g':
+    q->iterate(ungreenify);
+    q->iterate(*mask, greenify);
+    break;
   case 'q':
   case 27: // ESC
     std::cout << std::endl;
@@ -321,7 +342,6 @@ void onIdle(void) {
   glutPostRedisplay();
 }
 
-
 int main(int argc, char* argv[])
 {
   glutInit(&argc, argv);
@@ -353,6 +373,16 @@ int main(int argc, char* argv[])
     q->insert(new Point((((float) rand())/ (float) RAND_MAX) * width,
                         (((float) rand())/ (float) RAND_MAX) * height));
 
+  std::vector<float> polyX, polyY;
+  polyX.push_back(225); polyX.push_back(225); polyX.push_back(450);
+  polyX.push_back(675); polyX.push_back(450);
+
+  polyY.push_back(150); polyY.push_back(300); polyY.push_back(450);
+  polyY.push_back(450); polyY.push_back(150);
+
+  mask = new PolygonMask(polyX, polyY, 5);
+
+  q->iterate(*mask, greenify);
 
   glutMainLoop();
   return EXIT_SUCCESS;
