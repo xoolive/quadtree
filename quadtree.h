@@ -4,10 +4,10 @@
 #include <cassert>
 #include <cstdlib>
 
-#include <map>
 #include <list>
 #include <vector>
 #include <iostream>
+#include <unordered_map>
 
 #include "neighbour.h"
 
@@ -173,8 +173,11 @@ class ExtendedQuadtree
   // Data attached to the quadrant
   std::list<void*> points;
 
+  // Just to help not iterating twice
+  std::list<void*> already;
+
   // We keep a map of who is where
-  std::map<void*, ExtendedQuadtree*> where;
+  std::unordered_map<void*, ExtendedQuadtree*> where;
 
   // Capacity of each cell
   const unsigned int capacity;
