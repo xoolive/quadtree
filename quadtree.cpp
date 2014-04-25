@@ -1,8 +1,10 @@
 #include "quadtree.h"
 
 #include <cfloat> // FLT_EPSILON
+
 #include <stack>
 #include <vector>
+#include <algorithm>
 
 
 void PolygonMask::precompute()
@@ -26,7 +28,8 @@ void PolygonMask::precompute()
         + (polyY[i] * polyX[i]) / (polyY[j] - polyY[i]);
       multiple[i] = (polyX[j] - polyX[i])/(polyY[j] - polyY[i]);
     }
-    j=i;
+
+    j = i;
   }
 }
 
@@ -49,7 +52,7 @@ bool PolygonMask::pointInPolygon(float x, float y) const
 
   return oddNodes;
 }
-
+/*
 std::ostream& operator<<(std::ostream& out, std::vector<float> x)
 {
   out << "[";
@@ -59,7 +62,7 @@ std::ostream& operator<<(std::ostream& out, std::vector<float> x)
   out << "]";
   return out;
 }
-
+*/
 
 PolygonMask PolygonMask::clip(const Boundary& box) const
 {
@@ -240,20 +243,13 @@ ExtendedQuadtree::ExtendedQuadtree(const ExtendedQuadtree& e,
 
 bool ExtendedQuadtree::insert(void* pt)
 {
-  ExtendedQuadtree* where;
-  insert(pt, where);
-}
-
-bool ExtendedQuadtree::insert(void* pt, ExtendedQuadtree* where)
-{
   if (!b.contains(pt)) return false;
 
   // It is OK to go over capacity if a test "limitation" on b is verified
   if (b.limit || ((NULL == children[0]) && (points.size() < capacity)))
   {
     points.push_back(pt);
-    where = this;
-    std::cout << "where set " << where << std::endl;
+    ancestor->where[pt] = this;
     return true;
   }
 
@@ -272,14 +268,14 @@ bool ExtendedQuadtree::insert(void* pt, ExtendedQuadtree* where)
 
     // Forward data to children
     std::list<void*>::iterator it = points.begin(), ie = points.end();
-    for ( ; it != ie; ++it) this->insert(*it, where);
+    for ( ; it != ie; ++it) this->insert(*it);
     points.clear();
   }
 
-  if (children[0]->insert(pt), where) return true;
-  if (children[1]->insert(pt), where) return true;
-  if (children[2]->insert(pt), where) return true;
-  if (children[3]->insert(pt), where) return true;
+  if (children[0]->insert(pt)) return true;
+  if (children[1]->insert(pt)) return true;
+  if (children[2]->insert(pt)) return true;
+  if (children[3]->insert(pt)) return true;
 
   return false;
 
@@ -295,8 +291,6 @@ void ExtendedQuadtree::updateDiagonal(unsigned char diagdir,
     this->samelevel(diagdir)->delta[ (diagdir+4)&7 ] = (0==d?d:1);
     return ;
   }
-
-  // TODO make it easier to read?
 
   if (dir == WEST)
   {
@@ -429,22 +423,24 @@ void ExtendedQuadtree::iterate(const PolygonMask& m, bool (*apply)(void*))
 
 }
 
-bool ExtendedQuadtree::updateData(void* p, ExtendedQuadtree* where)
+bool ExtendedQuadtree::updateData(void* p)
 {
-  assert(p != NULL);
   // TODO what if data is not in points
-  if (contains(p)) return false;
-  ancestor->insert(p, where);
+  assert (p != NULL);
+  ExtendedQuadtree* e = where[p];
+  assert (e != NULL);
+  if (e->contains(p)) return false;
+  ancestor->insert(p);
   points.remove(p);
   return true;
 }
 
-bool ExtendedQuadtree::removeData(void* p)
+void ExtendedQuadtree::removeData(void* p)
 {
-  assert(p != NULL);
-  if (contains(p)) return false;
+  assert (p != NULL);
+  ExtendedQuadtree* e = where[p];
+  assert (e != NULL);
   points.remove(p);
-  return true;
 }
 
 void ExtendedQuadtree::iterate(bool (*apply)(void*))
