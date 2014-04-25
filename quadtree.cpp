@@ -425,22 +425,26 @@ void ExtendedQuadtree::iterate(const PolygonMask& m, bool (*apply)(void*))
 
 bool ExtendedQuadtree::updateData(void* p)
 {
-  // TODO what if data is not in points
   assert (p != NULL);
-  ExtendedQuadtree* e = where[p];
+  ExtendedQuadtree* e = ancestor->where[p];
   assert (e != NULL);
+  assert (e->points.end() != std::find(e->points.begin(), e->points.end(), p));
+
   if (e->contains(p)) return false;
+  e->points.remove(p);
   ancestor->insert(p);
-  points.remove(p);
   return true;
 }
 
 void ExtendedQuadtree::removeData(void* p)
 {
   assert (p != NULL);
-  ExtendedQuadtree* e = where[p];
+  ExtendedQuadtree* e = ancestor->where[p];
+  assert (e->points.end() != std::find(e->points.begin(), e->points.end(), p));
   assert (e != NULL);
-  points.remove(p);
+
+  e->points.remove(p);
+  ancestor->where.erase(p);
 }
 
 void ExtendedQuadtree::iterate(bool (*apply)(void*))
@@ -456,16 +460,25 @@ void ExtendedQuadtree::iterate(bool (*apply)(void*))
 
   std::list<void*>::iterator it = points.begin(), ie = points.end();
   while ( it != ie )
-    if (apply(*it))
-      if (!b.contains(*it))
-      {
-        // Computing the proper neighbour is as fast as finding it from the
-        // ancestor node...
-        ancestor->insert(*it);
-        it = points.erase(it);
-      }
+  {
+    if (already.end() == std::find(already.begin(), already.end(), *it))
+      if (apply(*it))
+        if (!b.contains(*it))
+        {
+          // Computing the proper neighbour is probably slower than finding it
+          // from the ancestor node...
+          ExtendedQuadtree* previous = ancestor->where[*it];
+          ancestor->insert(*it);
+          ExtendedQuadtree* current = ancestor->where[*it];
+          if (current->location > previous->location)
+            current->already.push_back(*it);
+          it = points.erase(it);
+        }
+        else ++it;
       else ++it;
     else ++it;
+  }
+  already.clear();
 }
 
 void ExtendedQuadtree::iterate(void (*apply)(void*, void*))
