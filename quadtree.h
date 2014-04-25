@@ -1,11 +1,13 @@
 #ifndef QUADTREE_H
 #define QUADTREE_H
 
-#include <list>
 #include <cassert>
-#include <cstdlib> // NULL
-#include <iostream>
+#include <cstdlib>
+
+#include <map>
+#include <list>
 #include <vector>
+#include <iostream>
 
 #include "neighbour.h"
 
@@ -15,8 +17,13 @@ class Boundary;
 class PolygonMask
 {
 private:
+  //! Nb of vertices in the polygon
   int size;
+
+  //! Coordinates of the vertices of the polygon
   std::vector<float> polyX, polyY;
+
+  //! Auxiliary variables
   std::vector<float> constant, multiple;
 
   // see http://alienryderflex.com/polygon/
@@ -24,13 +31,17 @@ private:
 
 public:
 
+  //! Constructor
   PolygonMask(std::vector<float> x, std::vector<float> y, int size);
 
+  //! Return the number of vertices of the polygon
   int getSize() const { return size; }
 
+  //! Returns whether a point of coordinates (x, y) is inside the polygon
   // see http://alienryderflex.com/polygon/
   bool pointInPolygon(float x, float y) const;
 
+  //! Returns a different polygon mask clipped by the boundary box
   // see http://en.wikipedia.org/wiki/Sutherland%E2%80%93Hodgman_algorithm
   PolygonMask clip(const Boundary& box) const;
 
@@ -40,30 +51,30 @@ public:
 
 class Boundary
 {
-  // Coordinates for the center of the box
-  float center_x;
-  float center_y;
+  //! Coordinates for the center of the box
+  float center_x, center_y ;
 
-  // Dimension from the center to the border of the box
-  float dim_x;
-  float dim_y;
+  //! Dimension from the center to the border of the box
+  float dim_x, dim_y;
 
-  // Find the coordinates of the data
-  float (*x)(void*);
-  float (*y)(void*);
+  //! Find the coordinates of the data
+  float (*x)(void*), (*y)(void*);
 
-  // Give some limitation to the size of the cells
+  //! Give some limitation to the size of the cells. This function shall return
+  //! true if the the Boundary box must not be subdivided.
   bool (*limitfct)(Boundary*);
 
-  // Store the result of limitation in order to avoid recomputation
+  //! Store the result of limitation in order to avoid recomputation
   bool limit;
 
+  //! Limitation function; returns false if unset
   bool limitation() {
     if (limitfct == NULL) return false;
     bool limit = limitfct(this);
     return limit;
   }
 
+  //! Return the number of points covered by the polygon mask m
   int coveredByPolygon(const PolygonMask& m);
 
 public:
@@ -79,27 +90,52 @@ public:
   //! Is this data included in the box?
   inline bool contains(void* pt) { return contains(x(pt), y(pt)); }
 
+  //! Returns the x-coordinate of the center of the boundary box
   inline float getX() const { return center_x; }
+
+  //! Returns the y-coordinate of the center of the boundary box
   inline float getY() const { return center_y; }
+
+  //! Returns the x dimension of the boundary box
   inline float getDimX() const { return dim_x; }
+
+  //! Returns the y dimension of the boundary box
   inline float getDimY() const { return dim_y; }
+
   //! L1 norm
   inline float norm_l1() const { return (dim_x + dim_y); }
 
   //! Max distance between two data in the box
   inline float norm_infty() const { return (dim_x < dim_y ? dim_x : dim_y); }
 
-  bool leftOf(float x, float y) const { return (x < center_x - dim_x - 1e-4); }
-  bool rightOf(float x, float y) const { return (x > center_x + dim_x + 1e-4); }
-  bool bottomOf(float x, float y) const { return (y < center_y - dim_y - 1e-4); }
-  bool upOf(float x, float y) const { return (y > center_y + dim_y + 1e-4); }
+  //! Returns true if the coordinates are left of the boundary box
+  bool leftOf(float x, float y) const { return (x < center_x-dim_x-1e-4); }
 
+  //! Returns true if the coordinates are right of the boundary box
+  bool rightOf(float x, float y) const { return (x > center_x+dim_x+1e-4); }
+
+  //! Returns true if the coordinates are bottom of the boundary box
+  bool bottomOf(float x, float y) const { return (y < center_y-dim_y-1e-4); }
+
+  //! Returns true if the coordinates are up of the boundary box
+  bool upOf(float x, float y) const { return (y > center_y+dim_y+1e-4); }
+
+  //! Returns the intersection with the left boundary of the box
   void interLeft(float, float, float, float, float&, float&);
+
+  //! Returns the intersection with the right boundary of the box
   void interRight(float, float, float, float, float&, float&);
+
+  //! Returns the intersection with the bottom boundary of the box
   void interBottom(float, float, float, float, float&, float&);
+
+  //! Returns the intersection with the up boundary of the box
   void interUp(float, float, float, float, float&, float&);
 
+  //! Types of methods leftOf, rightOf, bottomOf, upOf
   typedef bool (Boundary::*OUTSIDE_TEST) (float, float) const;
+
+  //! Types of methods interLeft, interRight, interBottom, interUp
   typedef bool (Boundary::*INTERSECT)
     (float, float, float, float, float&, float&) const;
 
@@ -136,6 +172,9 @@ class ExtendedQuadtree
 
   // Data attached to the quadrant
   std::list<void*> points;
+
+  // We keep a map of who is where
+  std::map<void*, ExtendedQuadtree*> where;
 
   // Capacity of each cell
   const unsigned int capacity;
@@ -176,13 +215,17 @@ public:
   ExtendedQuadtree* samelevel(unsigned char) const;
 
   //! Insert one piece of data to the quadrant
+  //! Returns true if the data has been inserted
   bool insert(void*);
-  bool insert(void*, ExtendedQuadtree*);
 
+  //! Update a data in current subtree, returns true if changed cell
+  bool updateData(void* p);
+
+  //! Removes a data in current subtree
+  void removeData(void* p);
+
+  //! Returns true if the current cell may contain the data
   bool contains(void* p) { return b.contains(p); }
-
-  bool updateData(void* p, ExtendedQuadtree* );
-  bool removeData(void* p);
 
   //! Returns the subquadrant pointed by location code
   ExtendedQuadtree* getQuadrant(unsigned long location,
@@ -225,6 +268,8 @@ public:
   //! Iterate something for all items
   //! Adjusts the quadtree if the items move
   void iterate(const PolygonMask& m, bool (*apply)(void*));
+
+  //! Iterate something for all items
   void iterate(bool (*apply)(void*));
 
   //! Iterate something for all pairs of items
