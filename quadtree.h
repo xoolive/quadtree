@@ -79,11 +79,15 @@ public:
   //! Is this data included in the box?
   inline bool contains(void* pt) { return contains(x(pt), y(pt)); }
 
+  inline float getX() const { return center_x; }
+  inline float getY() const { return center_y; }
+  inline float getDimX() const { return dim_x; }
+  inline float getDimY() const { return dim_y; }
   //! L1 norm
-  inline float norm_l1() { return (dim_x + dim_y); }
+  inline float norm_l1() const { return (dim_x + dim_y); }
 
   //! Max distance between two data in the box
-  inline float norm_infty() { return (dim_x < dim_y ? dim_x : dim_y); }
+  inline float norm_infty() const { return (dim_x < dim_y ? dim_x : dim_y); }
 
   bool leftOf(float x, float y) const { return (x < center_x - dim_x - 1e-4); }
   bool rightOf(float x, float y) const { return (x > center_x + dim_x + 1e-4); }
@@ -173,6 +177,12 @@ public:
 
   //! Insert one piece of data to the quadrant
   bool insert(void*);
+  bool insert(void*, ExtendedQuadtree*);
+
+  bool contains(void* p) { return b.contains(p); }
+
+  bool updateData(void* p, ExtendedQuadtree* );
+  bool removeData(void* p);
 
   //! Returns the subquadrant pointed by location code
   ExtendedQuadtree* getQuadrant(unsigned long location,

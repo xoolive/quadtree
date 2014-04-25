@@ -240,12 +240,20 @@ ExtendedQuadtree::ExtendedQuadtree(const ExtendedQuadtree& e,
 
 bool ExtendedQuadtree::insert(void* pt)
 {
+  ExtendedQuadtree* where;
+  insert(pt, where);
+}
+
+bool ExtendedQuadtree::insert(void* pt, ExtendedQuadtree* where)
+{
   if (!b.contains(pt)) return false;
 
   // It is OK to go over capacity if a test "limitation" on b is verified
   if (b.limit || ((NULL == children[0]) && (points.size() < capacity)))
   {
     points.push_back(pt);
+    where = this;
+    std::cout << "where set " << where << std::endl;
     return true;
   }
 
@@ -264,14 +272,14 @@ bool ExtendedQuadtree::insert(void* pt)
 
     // Forward data to children
     std::list<void*>::iterator it = points.begin(), ie = points.end();
-    for ( ; it != ie; ++it) this->insert(*it);
+    for ( ; it != ie; ++it) this->insert(*it, where);
     points.clear();
   }
 
-  if (children[0]->insert(pt)) return true;
-  if (children[1]->insert(pt)) return true;
-  if (children[2]->insert(pt)) return true;
-  if (children[3]->insert(pt)) return true;
+  if (children[0]->insert(pt), where) return true;
+  if (children[1]->insert(pt), where) return true;
+  if (children[2]->insert(pt), where) return true;
+  if (children[3]->insert(pt), where) return true;
 
   return false;
 
@@ -419,6 +427,24 @@ void ExtendedQuadtree::iterate(const PolygonMask& m, bool (*apply)(void*))
       else ++it;
     else ++it;
 
+}
+
+bool ExtendedQuadtree::updateData(void* p, ExtendedQuadtree* where)
+{
+  assert(p != NULL);
+  // TODO what if data is not in points
+  if (contains(p)) return false;
+  ancestor->insert(p, where);
+  points.remove(p);
+  return true;
+}
+
+bool ExtendedQuadtree::removeData(void* p)
+{
+  assert(p != NULL);
+  if (contains(p)) return false;
+  points.remove(p);
+  return true;
 }
 
 void ExtendedQuadtree::iterate(bool (*apply)(void*))
