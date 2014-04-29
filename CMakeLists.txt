@@ -10,6 +10,14 @@ if (INTEL_COMPILER)
   cmake_force_cxx_compiler (icpc "Intel C++ Compiler")
 endif (INTEL_COMPILER)
 
+if (WIN32)
+  if (MINGW)
+    set (CMAKE_CXX_FLAGS "-std=c++0x")
+  endif (MINGW)
+else (WIN32)
+  set (CMAKE_CXX_FLAGS "-std=c++11")
+endif(WIN32)
+
 add_library (quadtree STATIC
   neighbour.cpp
   quadtree.cpp)
