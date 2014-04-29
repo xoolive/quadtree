@@ -267,8 +267,8 @@ bool ExtendedQuadtree::insert(void* pt)
           updateDelta(i);
 
     // Forward data to children
-    std::list<void*>::iterator it = points.begin(), ie = points.end();
-    for ( ; it != ie; ++it) this->insert(*it);
+    std::for_each (points.begin(), points.end(),
+                   [=](void* p) { this->insert(p); } );
     points.clear();
   }
 
