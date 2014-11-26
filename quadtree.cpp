@@ -241,6 +241,13 @@ ExtendedQuadtree::ExtendedQuadtree(const ExtendedQuadtree& e,
 
 }
 
+ExtendedQuadtree::~ExtendedQuadtree()
+{
+  if (NULL == children[0]) return;
+  delete children[0]; delete children[1];
+  delete children[2]; delete children[3];
+}
+
 bool ExtendedQuadtree::insert(void* pt)
 {
   if (!b.contains(pt)) return false;
