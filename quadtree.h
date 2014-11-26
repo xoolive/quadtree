@@ -214,6 +214,9 @@ public:
   // SW -> 0, SE -> 1, NW -> 2, NE -> 3
   ExtendedQuadtree(const ExtendedQuadtree&, unsigned char);
 
+  //! Destructor
+  ~ExtendedQuadtree();
+
   //! Find same level neighbour in determined direction
   ExtendedQuadtree* samelevel(unsigned char) const;
 
