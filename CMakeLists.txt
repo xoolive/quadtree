@@ -28,3 +28,15 @@ if (BUILD_TESTS)
   add_subdirectory (tests)
 endif (BUILD_TESTS)
 
+install (TARGETS quadtree
+  EXPORT quadtree
+  DESTINATION lib
+  INCLUDES DESTINATION include)
+
+install (FILES neighbour.h quadtree.h
+  DESTINATION include)
+
+install (EXPORT quadtree
+  DESTINATION share/cmake
+  FILE quadtree-config.cmake)
+
