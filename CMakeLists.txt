@@ -36,14 +36,14 @@ if (BUILD_TESTS)
 endif (BUILD_TESTS)
 
 install (TARGETS smartquadtree
-  EXPORT smartquadtree
+  EXPORT quadtree
   DESTINATION lib
   INCLUDES DESTINATION include)
 
 install (FILES neighbour.h quadtree.h
   DESTINATION include)
 
-install (EXPORT smartquadtree
+install (EXPORT quadtree
   DESTINATION share/cmake
   FILE quadtree-config.cmake)
 
