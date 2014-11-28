@@ -10,7 +10,7 @@ endif (APPLE)
 
 macro (prepare_test target)
   add_executable (test_${target} test_${target}.cpp)
-  target_link_libraries (test_${target} quadtree)
+  target_link_libraries (test_${target} smartquadtree)
   add_test (${target} test_${target})
 endmacro (prepare_test)
 
@@ -28,12 +28,12 @@ add_executable (test_simu
   test_simu.cpp)
 
 target_link_libraries(test_simu
-  quadtree
+  smartquadtree
   ${OPENGL_gl_LIBRARY}
   ${OPENGL_glu_LIBRARY}
   ${GLUT_glut_LIBRARY}
   )
- 
+
 file (COPY
   "run.cmake"
   DESTINATION ${CMAKE_BINARY_DIR}

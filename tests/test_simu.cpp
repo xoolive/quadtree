@@ -1,3 +1,16 @@
+/*
+ * Little OpenGL animation to test smart quadtrees.
+ *
+ * At time 0, all elements inside a predefined shape are greened.
+ * Each time we press 'g', we detect elements inside the same shape, and paint
+ * elements again.
+ *
+ * At all time, a link is drawn between elements coming within a threshold
+ * distance.
+ *
+ * Xavier Olive, 28 nov. 2014
+ */
+
 #ifdef __APPLE__
 #include <GLUT/glut.h>
 #else
@@ -14,7 +27,7 @@
 
 GLint height = 600;
 GLint width = 900;
-ExtendedQuadtree* q = NULL;
+SmartQuadtree* q = NULL;
 float center_x, center_y;
 float zoom;
 int mouse_x, mouse_y, mouse_b, mouse_s;
@@ -65,7 +78,7 @@ std::ostream& operator<<(std::ostream& os, const Point& p)
   return os;
 }
 
-std::ostream& operator<<(std::ostream& os, const ExtendedQuadtree& e)
+std::ostream& operator<<(std::ostream& os, const SmartQuadtree& e)
 {
   for (size_t i=0; i<e.level; ++i) os << "  ";
   os << "{" << std::endl;
@@ -334,7 +347,7 @@ void onIdle(void) {
   q->iterate(movePoints);
   checkCount = 0;
 #ifdef __INTEL_COMPILER
-  q->iterateby4(conflict, conflictby4);
+  q->iteratebyn(conflict, conflictby4, 4);
 #else
   q->iterate(conflict);
 #endif
@@ -363,8 +376,8 @@ int main(int argc, char* argv[])
   glutDisplayFunc(onDisplay);
   glutIdleFunc(onIdle);
 
-  q = new ExtendedQuadtree((float) width/2., (float) height/2.,
-                           (float) width/2., (float) height/2., 16);
+  q = new SmartQuadtree((float) width/2., (float) height/2.,
+                        (float) width/2., (float) height/2., 16);
 
   q->setXYFcts(getX, getY);
   q->setLimitation(limitation);
