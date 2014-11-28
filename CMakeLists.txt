@@ -1,5 +1,12 @@
+# Compilation of a smart version of quadtrees specialised for tracking moving
+# objects. When iterating over elements in the quadtree, a simple flag
+# (boolean) indicates whether the element might have moved to a neighbouring
+# subdivision.
+#
+# Xavier Olive, 28 nov. 2014
+
 cmake_minimum_required (VERSION 2.8.12)
-project (detection CXX)
+project (quadtree CXX)
 
 option (BUILD_TESTS "Build tests" ON)
 
@@ -18,7 +25,7 @@ else (WIN32)
   set (CMAKE_CXX_FLAGS "-std=c++11")
 endif(WIN32)
 
-add_library (quadtree STATIC
+add_library (smartquadtree STATIC
   neighbour.cpp
   quadtree.cpp)
 
@@ -28,15 +35,15 @@ if (BUILD_TESTS)
   add_subdirectory (tests)
 endif (BUILD_TESTS)
 
-install (TARGETS quadtree
-  EXPORT quadtree
+install (TARGETS smartquadtree
+  EXPORT smartquadtree
   DESTINATION lib
   INCLUDES DESTINATION include)
 
 install (FILES neighbour.h quadtree.h
   DESTINATION include)
 
-install (EXPORT quadtree
+install (EXPORT smartquadtree
   DESTINATION share/cmake
   FILE quadtree-config.cmake)
 

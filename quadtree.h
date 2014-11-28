@@ -1,3 +1,12 @@
+/*
+ * Interface for a smart version of quadtrees specialised for tracking moving
+ * objects. When iterating over elements in the quadtree, a simple flag
+ * (boolean) indicates whether the element might have moved to a neighbouring
+ * subdivision.
+ *
+ * Xavier Olive, 28 nov. 2014
+ */
+
 #ifndef QUADTREE_H
 #define QUADTREE_H
 
@@ -11,7 +20,7 @@
 
 #include "neighbour.h"
 
-class ExtendedQuadtree;
+class SmartQuadtree;
 class Boundary;
 
 class PolygonMask
@@ -139,13 +148,13 @@ public:
   typedef bool (Boundary::*INTERSECT)
     (float, float, float, float, float&, float&) const;
 
-  friend class ExtendedQuadtree;
-  friend std::ostream& operator<<(std::ostream&, const ExtendedQuadtree&);
+  friend class SmartQuadtree;
+  friend std::ostream& operator<<(std::ostream&, const SmartQuadtree&);
 
 };
 
-class Test_ExtendedQuadtree;
-class ExtendedQuadtree
+class Test_SmartQuadtree;
+class SmartQuadtree
 {
   // Delimitates the quadrant
   Boundary b;
@@ -165,7 +174,7 @@ class ExtendedQuadtree
   int delta[8];
 
   // Children nodes
-  ExtendedQuadtree *children[4];
+  SmartQuadtree *children[4];
 
   // Directions corresponding to children nodes
   static const unsigned char diags[4];
@@ -177,13 +186,13 @@ class ExtendedQuadtree
   std::list<void*> already;
 
   // We keep a map of who is where
-  std::unordered_map<void*, ExtendedQuadtree*> where;
+  std::unordered_map<void*, SmartQuadtree*> where;
 
   // Capacity of each cell
   const unsigned int capacity;
 
   // Ancestor
-  ExtendedQuadtree* ancestor;
+  SmartQuadtree* ancestor;
 
   //! Increments the delta in direction dir
   //! Returns true if you have children
@@ -199,7 +208,7 @@ class ExtendedQuadtree
 public:
 
   //! Constructor
-  ExtendedQuadtree(float center_x, float center_y, float dim_x, float dim_y,
+  SmartQuadtree(float center_x, float center_y, float dim_x, float dim_y,
                    unsigned int capacity) :
     b(center_x, center_y, dim_x, dim_y), location(0), level(0),
     capacity(capacity), ancestor(this)
@@ -212,13 +221,13 @@ public:
 
   //! Constructor of a child quadtree
   // SW -> 0, SE -> 1, NW -> 2, NE -> 3
-  ExtendedQuadtree(const ExtendedQuadtree&, unsigned char);
+  SmartQuadtree(const SmartQuadtree&, unsigned char);
 
   //! Destructor
-  ~ExtendedQuadtree();
+  ~SmartQuadtree();
 
   //! Find same level neighbour in determined direction
-  ExtendedQuadtree* samelevel(unsigned char) const;
+  SmartQuadtree* samelevel(unsigned char) const;
 
   //! Insert one piece of data to the quadrant
   //! Returns true if the data has been inserted
@@ -234,14 +243,14 @@ public:
   bool contains(void* p) { return b.contains(p); }
 
   //! Returns the subquadrant pointed by location code
-  ExtendedQuadtree* getQuadrant(unsigned long location,
+  SmartQuadtree* getQuadrant(unsigned long location,
                                 unsigned short level) const;
 
   //! Returns the data embedded to current quadrant
   inline const std::list<void*>& getPoints() const { return points; }
 
   //! Returns a point to the proper child 0->SW, 1->SE, 2->NW, 3->NE
-  inline const ExtendedQuadtree* getChild(unsigned char i) const
+  inline const SmartQuadtree* getChild(unsigned char i) const
   {
     assert (i<4);
     return children[i];
@@ -278,14 +287,16 @@ public:
   //! Iterate something for all items
   void iterate(bool (*apply)(void*));
 
-  //! Iterate something for all pairs of items
+  //! Iterate something for all pairs of neighbouring items
   void iterate(void (*apply)(void*, void*));
 
-  //! Iterate some function for all pairs of items, vectorised version
-  void iterateby4(void (*apply)(void*, void*), void (*applyby4)(void*,void**));
+  //! Iterate something for all pairs of neighbouring items
+  //! Vectorised version
+  void iteratebyn(void (*apply)(void*, void*),
+                  void (*applybyn)(void*,void**), unsigned char n);
 
-  friend std::ostream& operator<<(std::ostream&, const ExtendedQuadtree&);
-  friend class Test_ExtendedQuadtree;
+  friend std::ostream& operator<<(std::ostream&, const SmartQuadtree&);
+  friend class Test_SmartQuadtree;
 
 };
 

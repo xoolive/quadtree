@@ -1,3 +1,12 @@
+/*
+ * Implementation for a smart version of quadtrees specialised for tracking
+ * moving objects. When iterating over elements in the quadtree, a simple flag
+ * (boolean) indicates whether the element might have moved to a neighbouring
+ * subdivision.
+ *
+ * Xavier Olive, 28 nov. 2014
+ */
+
 #include "quadtree.h"
 
 #include <cfloat> // FLT_EPSILON
@@ -119,7 +128,7 @@ PolygonMask PolygonMask::clip(const Boundary& box) const
 }
 
 
-const unsigned char ExtendedQuadtree::diags[] =
+const unsigned char SmartQuadtree::diags[] =
 { SOUTHWEST, SOUTHEAST, NORTHWEST, NORTHEAST };
 
 bool Boundary::contains(float x, float y)
@@ -170,20 +179,18 @@ void Boundary::interUp(float x1, float y1, float x2, float y2,
   xout = x1 + (yout - y1) / (y2 - y1) * (x2 - x1);
 }
 
-ExtendedQuadtree*
-ExtendedQuadtree::samelevel(unsigned char dir) const
+SmartQuadtree* SmartQuadtree::samelevel(unsigned char dir) const
 {
   if (delta[dir] == 2) return NULL;
   unsigned int newloc = Neighbour::samelevel(location, dir, level);
   return getQuadrant(newloc, level);
 }
 
-ExtendedQuadtree*
-ExtendedQuadtree::getQuadrant(unsigned long location,
-                              unsigned short depth) const
+SmartQuadtree*
+SmartQuadtree::getQuadrant(unsigned long location, unsigned short depth) const
 {
   assert(depth < 2048);
-  ExtendedQuadtree *quadrant = ancestor, *desc;
+  SmartQuadtree *quadrant = ancestor, *desc;
   static unsigned char stack[2048];
   short istack = depth - 1;
 
@@ -201,8 +208,7 @@ ExtendedQuadtree::getQuadrant(unsigned long location,
   return quadrant;
 }
 
-ExtendedQuadtree::ExtendedQuadtree(const ExtendedQuadtree& e,
-                                   unsigned char subdivision)
+SmartQuadtree::SmartQuadtree(const SmartQuadtree& e, unsigned char subdivision)
   : b(e.b), capacity(e.capacity)
 {
 
@@ -241,14 +247,14 @@ ExtendedQuadtree::ExtendedQuadtree(const ExtendedQuadtree& e,
 
 }
 
-ExtendedQuadtree::~ExtendedQuadtree()
+SmartQuadtree::~SmartQuadtree()
 {
   if (NULL == children[0]) return;
   delete children[0]; delete children[1];
   delete children[2]; delete children[3];
 }
 
-bool ExtendedQuadtree::insert(void* pt)
+bool SmartQuadtree::insert(void* pt)
 {
   if (!b.contains(pt)) return false;
 
@@ -262,10 +268,10 @@ bool ExtendedQuadtree::insert(void* pt)
 
   if (NULL == children[0])
   {
-    children[0] = new ExtendedQuadtree(*this, 0);
-    children[1] = new ExtendedQuadtree(*this, 1);
-    children[2] = new ExtendedQuadtree(*this, 2);
-    children[3] = new ExtendedQuadtree(*this, 3);
+    children[0] = new SmartQuadtree(*this, 0);
+    children[1] = new SmartQuadtree(*this, 1);
+    children[2] = new SmartQuadtree(*this, 2);
+    children[3] = new SmartQuadtree(*this, 3);
 
     // Update neighbour info
     for (unsigned int i = 0; i < 8; ++i)
@@ -288,8 +294,8 @@ bool ExtendedQuadtree::insert(void* pt)
 
 }
 
-void ExtendedQuadtree::updateDiagonal(unsigned char diagdir,
-                                      unsigned char dir, int d)
+void SmartQuadtree::updateDiagonal(unsigned char diagdir,
+                                   unsigned char dir, int d)
 {
   if (children[0] == NULL)
   {
@@ -332,7 +338,7 @@ void ExtendedQuadtree::updateDiagonal(unsigned char diagdir,
 
 //! Increments the delta in direction dir
 //! Returns true if you have children
-bool ExtendedQuadtree::incrementDelta(unsigned char dir, bool flag)
+bool SmartQuadtree::incrementDelta(unsigned char dir, bool flag)
 {
   if (children[0] == NULL)
   {
@@ -378,7 +384,7 @@ bool ExtendedQuadtree::incrementDelta(unsigned char dir, bool flag)
 
 //! Updates the delta in direction dir if neighbour of same level has
 //! children nodes
-void ExtendedQuadtree::updateDelta(unsigned char dir)
+void SmartQuadtree::updateDelta(unsigned char dir)
 {
   if ( dir < 3 ) // NORTHEAST corner
     if (children[3]->samelevel(dir)->children[0] != NULL)
@@ -394,7 +400,7 @@ void ExtendedQuadtree::updateDelta(unsigned char dir)
       children[1]->delta[dir] = 1;
 }
 
-void ExtendedQuadtree::iterate(const PolygonMask& m, bool (*apply)(void*))
+void SmartQuadtree::iterate(const PolygonMask& m, bool (*apply)(void*))
 {
   PolygonMask clip = m.clip(b);
   if (clip.getSize() < 3) return;
@@ -430,10 +436,10 @@ void ExtendedQuadtree::iterate(const PolygonMask& m, bool (*apply)(void*))
 
 }
 
-bool ExtendedQuadtree::updateData(void* p)
+bool SmartQuadtree::updateData(void* p)
 {
   assert (p != NULL);
-  ExtendedQuadtree* e = ancestor->where[p];
+  SmartQuadtree* e = ancestor->where[p];
   assert (e != NULL);
   assert (e->points.end() != std::find(e->points.begin(), e->points.end(), p));
 
@@ -443,10 +449,10 @@ bool ExtendedQuadtree::updateData(void* p)
   return true;
 }
 
-void ExtendedQuadtree::removeData(void* p)
+void SmartQuadtree::removeData(void* p)
 {
   assert (p != NULL);
-  ExtendedQuadtree* e = ancestor->where[p];
+  SmartQuadtree* e = ancestor->where[p];
   assert (e->points.end() != std::find(e->points.begin(), e->points.end(), p));
   assert (e != NULL);
 
@@ -454,7 +460,7 @@ void ExtendedQuadtree::removeData(void* p)
   ancestor->where.erase(p);
 }
 
-void ExtendedQuadtree::iterate(bool (*apply)(void*))
+void SmartQuadtree::iterate(bool (*apply)(void*))
 {
   if (children[0] != NULL)
   {
@@ -474,9 +480,9 @@ void ExtendedQuadtree::iterate(bool (*apply)(void*))
         {
           // Computing the proper neighbour is probably slower than finding it
           // from the ancestor node...
-          ExtendedQuadtree* previous = ancestor->where[*it];
+          SmartQuadtree* previous = ancestor->where[*it];
           ancestor->insert(*it);
-          ExtendedQuadtree* current = ancestor->where[*it];
+          SmartQuadtree* current = ancestor->where[*it];
           if (current->location > previous->location)
             current->already.push_back(*it);
           it = points.erase(it);
@@ -488,7 +494,7 @@ void ExtendedQuadtree::iterate(bool (*apply)(void*))
   already.clear();
 }
 
-void ExtendedQuadtree::iterate(void (*apply)(void*, void*))
+void SmartQuadtree::iterate(void (*apply)(void*, void*))
 {
   if (children[0] != NULL)
   {
@@ -500,7 +506,7 @@ void ExtendedQuadtree::iterate(void (*apply)(void*, void*))
 
   std::vector<void*> neighbours;
 
-  ExtendedQuadtree* nb;
+  SmartQuadtree* nb;
   for (size_t i = 0; i < 4; ++i)
     if (delta[i] < 1) {
       nb = samelevel(i);
@@ -527,21 +533,22 @@ void ExtendedQuadtree::iterate(void (*apply)(void*, void*))
 
 }
 
-void ExtendedQuadtree::iterateby4(void (*apply)(void*, void*),
-                                  void (*applyby4)(void*, void**))
+void SmartQuadtree::iteratebyn(void (*apply)(void*, void*),
+                               void (*applybyn)(void*, void**),
+                               unsigned char n)
 {
   if (children[0] != NULL)
   {
-    children[0]->iterateby4(apply, applyby4);
-    children[1]->iterateby4(apply, applyby4);
-    children[2]->iterateby4(apply, applyby4);
-    children[3]->iterateby4(apply, applyby4);
+    children[0]->iteratebyn(apply, applybyn, n);
+    children[1]->iteratebyn(apply, applybyn, n);
+    children[2]->iteratebyn(apply, applybyn, n);
+    children[3]->iteratebyn(apply, applybyn, n);
   }
 
   std::vector<void*> neighbours;
   std::list<void*>::const_iterator it = points.begin(), ie = points.end();
 
-  ExtendedQuadtree* nb;
+  SmartQuadtree* nb;
   for (size_t i = 0; i < 4; ++i)
     if (delta[i] < 1) {
       nb = samelevel(i);
@@ -556,22 +563,23 @@ void ExtendedQuadtree::iterateby4(void (*apply)(void*, void*),
       neighbours.insert(neighbours.end(),it,ie);
     }
 
-    for (std::list<void*>::iterator itL = points.begin(); itL != points.end();
-         itL++) {
-      std::list<void*>::iterator jtL = itL;
-      jtL++;
-      for ( ; jtL != points.end(); ++jtL)
-        apply(*itL, *jtL);
-      int j=0;
-      for ( ; j < int(neighbours.size())-3; j+=4)
-        applyby4(*itL, &(neighbours[j]));
-      for( ; j < neighbours.size(); j++)
-        apply(*itL, neighbours[j]);
-    }
+  for (std::list<void*>::iterator itL = points.begin();
+       itL != points.end(); itL++)
+  {
+    std::list<void*>::iterator jtL = itL;
+    jtL++;
+    for ( ; jtL != points.end(); ++jtL)
+      apply(*itL, *jtL);
+    int j=0;
+    for ( ; j < int(neighbours.size()-n+1); j+=n)
+      applybyn(*itL, &(neighbours[j]));
+    for( ; j < neighbours.size(); j++)
+      apply(*itL, neighbours[j]);
+  }
 }
 
 
-unsigned long ExtendedQuadtree::getDataSize() const
+unsigned long SmartQuadtree::getDataSize() const
 {
   unsigned long size = 0, tmp;
   if (children[0] != NULL)
@@ -590,7 +598,7 @@ unsigned long ExtendedQuadtree::getDataSize() const
   return points.size();
 }
 
-unsigned char ExtendedQuadtree::getDepth() const
+unsigned char SmartQuadtree::getDepth() const
 {
   unsigned char depth = 0, tmp;
   if (children[0] != NULL)

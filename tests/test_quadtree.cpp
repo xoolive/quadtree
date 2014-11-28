@@ -21,7 +21,7 @@ std::ostream& operator<<(std::ostream& os, const Point& p)
   return os;
 }
 
-std::ostream& operator<<(std::ostream& os, const ExtendedQuadtree& e)
+std::ostream& operator<<(std::ostream& os, const SmartQuadtree& e)
 {
   for (size_t i=0; i<e.level; ++i) os << "  ";
   os << "{" << std::endl;
@@ -48,15 +48,15 @@ std::ostream& operator<<(std::ostream& os, const ExtendedQuadtree& e)
   return os;
 }
 
-class Test_ExtendedQuadtree {
+class Test_SmartQuadtree {
 public:
-  static void RunTest_ExtendedQuadtree(Logger& log) ;
+  static void RunTest_SmartQuadtree(Logger& log) ;
 };
 
-void Test_ExtendedQuadtree::RunTest_ExtendedQuadtree(Logger& log)
+void Test_SmartQuadtree::RunTest_SmartQuadtree(Logger& log)
 {
 
-  ExtendedQuadtree q(0., 0., 4., 4., 4);
+  SmartQuadtree q(0., 0., 4., 4., 4);
   q.setXYFcts(getX, getY);
   q.setLimitation(limitation);
 
@@ -94,7 +94,7 @@ void Test_ExtendedQuadtree::RunTest_ExtendedQuadtree(Logger& log)
   log.message(__LINE__, "                          |                        ");
   log.message(__LINE__, "                                                   ");
 
-  ExtendedQuadtree* m = q.getQuadrant(0x30, 3);
+  SmartQuadtree* m = q.getQuadrant(0x30, 3);
 
   log.testhex(__LINE__, m->samelevel(NORTH)->getLocation(), 0x32,
               "m->samelevel(NORTH)->getLocation()");
@@ -147,7 +147,7 @@ void Test_ExtendedQuadtree::RunTest_ExtendedQuadtree(Logger& log)
   log.testint(__LINE__, m->samelevel(WEST)->delta[EAST], 1,
               "m->samelevel(WEST)->delta[EAST]");
 
-  ExtendedQuadtree* me = q.getQuadrant(0x31, 3);
+  SmartQuadtree* me = q.getQuadrant(0x31, 3);
   log.testint(__LINE__, me->delta[EAST], -1, "me->delta[EAST]");
   log.testint(__LINE__, me->samelevel(EAST)->delta[WEST], 1,
               "me->samelevel(EAST)->delta[WEST]");
@@ -159,7 +159,7 @@ void Test_ExtendedQuadtree::RunTest_ExtendedQuadtree(Logger& log)
   log.testint(__LINE__, m->samelevel(SOUTHWEST)->delta[NORTHEAST], 1,
               "m->samelevel(SOUTHWEST)->delta[NORTHEAST]");
 
-  ExtendedQuadtree* mne = m->samelevel(NORTHEAST);
+  SmartQuadtree* mne = m->samelevel(NORTHEAST);
 
   log.testint(__LINE__, mne->delta[NORTHEAST], -1, "mne->delta[NORTHEAST]");
   log.testint(__LINE__, mne->samelevel(NORTHEAST)->delta[SOUTHWEST], 1,
@@ -184,7 +184,7 @@ void Test_ExtendedQuadtree::RunTest_ExtendedQuadtree(Logger& log)
   log.testint(__LINE__, m->samelevel(WEST)->delta[EAST], 1,
               "m->samelevel(WEST)->delta[EAST]");
 
-  ExtendedQuadtree* mnn = q.getQuadrant(0xe, 2);
+  SmartQuadtree* mnn = q.getQuadrant(0xe, 2);
   log.testint(__LINE__, mnn->delta[WEST], 0, "m->delta[WEST]");
   log.testint(__LINE__, mnn->samelevel(WEST)->delta[EAST], 0,
               "mnn->samelevel(WEST)->delta[EAST]");
@@ -209,7 +209,7 @@ void Test_ExtendedQuadtree::RunTest_ExtendedQuadtree(Logger& log)
   q.insert(new Point(-0.4, 0.3));
   q.insert(new Point(-0.1, 0.6));
 
-  ExtendedQuadtree* mw = q.getQuadrant(0x25, 3);
+  SmartQuadtree* mw = q.getQuadrant(0x25, 3);
   log.testint(__LINE__, mw->delta[SOUTH], -2, "mw->delta[SOUTH]");
   log.testint(__LINE__, mw->delta[EAST],   0, "mw->delta[EAST]");
   log.testint(__LINE__, mw->delta[NORTH],  0, "mw->delta[NORTH]");
@@ -234,6 +234,6 @@ void Test_ExtendedQuadtree::RunTest_ExtendedQuadtree(Logger& log)
 int main()
 {
   Logger log(__FILE__);
-  Test_ExtendedQuadtree::RunTest_ExtendedQuadtree(log);
+  Test_SmartQuadtree::RunTest_SmartQuadtree(log);
   return log.reportexit();
 }
