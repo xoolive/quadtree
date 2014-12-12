@@ -49,7 +49,7 @@ public:
 
   //! Yields the location code for the neighbour of same level in direction dir
   static unsigned int samelevel(unsigned int x, unsigned int dir,
-                                unsigned int level)
+                                unsigned long level)
   {
     if (level > maxlevel) generate(level);
     return (((x | _y) + (directions[dir] & _x)) & _x) |
