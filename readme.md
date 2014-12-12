@@ -1,9 +1,10 @@
-Quadtrees for moving objects
-============================
+Quadtrees iterating on pairs of neighbouring items
+==================================================
 
-Compilation of a smart version of quadtrees specialised for tracking moving
-objects. When iterating over elements in the quadtree, a simple flag (boolean)
-indicates whether the element might have moved to a neighbouring subdivision.
+Implementation of a smart version of quadtrees specialised in tracking distance
+between moving objects. When iterating over elements in the quadtree,
+a decorator on the function to be iterated indicates whether the element might
+have moved to a neighbouring subdivision.
 
 ### todo
 - Better documentation

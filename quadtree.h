@@ -244,7 +244,7 @@ public:
 
   //! Returns the subquadrant pointed by location code
   SmartQuadtree* getQuadrant(unsigned long location,
-                                unsigned short level) const;
+                             unsigned short level) const;
 
   //! Returns the data embedded to current quadrant
   inline const std::list<void*>& getPoints() const { return points; }
