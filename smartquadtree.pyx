@@ -29,7 +29,7 @@ cdef extern from "quadtree.h":
         void setLimitation(cppbool (*limit)(Boundary*))
         cppbool insert(void*)
         void iterate(cppbool (*fct)(void*))
-        void iterate(void (*fct)(void*, void*));
+        void iterate(void (*fct)(void*, void*))
         void iterate(PolygonMask, cppbool (*fct)(void*))
 
 cdef object global_lbd, global_flag
