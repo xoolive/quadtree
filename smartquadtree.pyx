@@ -99,7 +99,7 @@ cdef cppbool decref_all(void* p):
 
 cdef cppbool limitation(Boundary* b):
     global size_limit
-    cdef float sq_size = b.norm_infty();
+    cdef float sq_size = b.norm_infty()
     return <bint> (sq_size < size_limit)
 
 cdef class Quadtree(object):
