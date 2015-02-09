@@ -9,7 +9,13 @@ have moved to a neighbouring subdivision.
 
 ### Installation
 
-The easiest way to install the quadtree package is using pip
+Recommended installation procedure :
+- `virtualenv` (optional, but a good idea nonetheless):
+```
+ virtualenv quadtree_test
+ source quadtree_test/bin/activate
+```
+- installation:
 ```
 pip install git+git://github.com/xoolive/quadtree
 ```
