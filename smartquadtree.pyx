@@ -105,10 +105,11 @@ cdef cppbool limitation(Boundary* b):
 cdef class Quadtree(object):
     """ Main class for quadtrees
     You must provide x-y coordinates for a center, x-y dimensions for width
-    and height of the quadtree and a maximum depth for subdivisions.
+    and height of the quadtree and a maximum size for data in each cell before
+    subdivision (default: 8).
 
     For a quadtree centered on (0, 0) and ranging on [-10, 10]:
-    >>> q = Quadtree(0., 0., 10., 10., 16)
+    >>> q = Quadtree(0., 0., 10., 10.)
 
     All methods attached to the Quadtree class are detailed below.
     """
@@ -117,15 +118,20 @@ cdef class Quadtree(object):
     cdef object is_tuple_or_list
     cdef long count
 
-    def __cinit__(self, x0, y0, dim_x, dim_y, depth):
+    def __cinit__(self, x0=None, y0=None, dim_x=None, dim_y=None, depth=8):
         self.p = NULL
+        self.q = NULL
+        if any([p is None for p in [x0, y0, dim_x, dim_y]]):
+            print self.__doc__
+            raise SyntaxError
         self.q = new SmartQuadtree(x0, y0, dim_x, dim_y, depth)
         self.is_tuple_or_list = None
         self.count = 0
 
     def __dealloc__(self):
-        self.q.iterate(decref_all)
-        del self.q
+        if self.q != NULL:
+            self.q.iterate(decref_all)
+            del self.q
         if self.p != NULL:
             del self.p
 
@@ -240,22 +246,17 @@ cdef class Quadtree(object):
         within the polygon.
 
         If the function changes x-y coordinates of the element, it shall
-        return True. If it does not change x-y coordinates, it shall return
-        False.
+        be decorated with @movable_elt. If it does not change x-y coordinates,
+        it shall be decorated with @static_elt.
 
-        If the function does not return a Python boolean, it may be
-        interpreted as False and the element may be incorrectly positioned
-        inside the structure. (Better think undefined behaviour)
-
-        >>> def f_print(p): print (p)
+        >>> @static_elt
+        ... def f_print(p):
+        ...     print (p)
         >>> q.iterate(f_print)
-
-        Also with lambdas:
-        >>> q.iterate(lambda p: print (p))
 
         If you want to print elements inside the following triangle:
         >>> q.set_mask([ (0, 0), (1.5, 3), (3, 0) ])
-        >>> q.iterate(lambda p: print (p))
+        >>> q.iterate(f_print)
         """
         global global_lbd
         global_lbd = lbd
