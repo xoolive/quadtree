@@ -6,7 +6,7 @@
 # Xavier Olive, 28 nov. 2014
 
 cmake_minimum_required (VERSION 2.8.12)
-project (quadtree CXX)
+project (quadtree C CXX)
 
 option (BUILD_TESTS "Build tests" ON)
 
