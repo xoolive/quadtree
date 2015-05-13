@@ -280,8 +280,10 @@ bool SmartQuadtree::insert(void* pt)
           updateDelta(i);
 
     // Forward data to children
-    std::for_each (points.begin(), points.end(),
-                   [=](void* p) { this->insert(p); } );
+    //std::for_each (points.begin(), points.end(),
+    //               [=](void* p) { this->insert(p); } );
+    for(std::list<void*>::iterator it = points.begin(); it != points.end(); ++it)
+      this->insert(*it);
     points.clear();
   }
 
