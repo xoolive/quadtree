@@ -6,7 +6,7 @@
 # Xavier Olive, 28 nov. 2014
 
 cmake_minimum_required (VERSION 2.8.12)
-project (quadtree C CXX)
+project (quadtree)
 
 option (BUILD_TESTS "Build tests" ON)
 
@@ -22,7 +22,8 @@ if (WIN32)
     set (CMAKE_CXX_FLAGS "-std=c++0x")
   endif (MINGW)
 else (WIN32)
-  set (CMAKE_CXX_FLAGS "-std=c++11")
+  #set (CMAKE_CXX_FLAGS "-std=c++11")
+  set (CMAKE_CXX_FLAGS "-std=c++0x")
 endif(WIN32)
 
 add_library (smartquadtree STATIC
