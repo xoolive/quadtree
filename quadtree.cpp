@@ -535,6 +535,88 @@ void SmartQuadtree::iterate(void (*apply)(void*, void*))
 
 }
 
+void SmartQuadtree::iterate(const PolygonMask& m, void (*apply)(void*, void*))
+{
+  PolygonMask clip = m.clip(b);
+  if (clip.getSize() < 3) return;
+
+  if (children[0] != NULL)
+  {
+    children[0]->iterate(m, apply);
+    children[1]->iterate(m, apply);
+    children[2]->iterate(m, apply);
+    children[3]->iterate(m, apply);
+  }
+
+  std::vector<void*> neighbours;
+
+  SmartQuadtree* nb;
+  PolygonMask clip_nb(clip);
+  for (size_t i = 0; i < 4; ++i)
+    if (delta[i] < 1) {
+      nb = samelevel(i);
+      clip_nb = m.clip(nb->b);
+      if (clip_nb.getSize() < 3) continue;
+      std::list<void*>::const_iterator it = nb->getPoints().begin(),
+        itend = nb->getPoints().end();
+     if (b.coveredByPolygon(clip) == 4)
+        for (; it!=itend; ++it)
+          neighbours.push_back(*it);
+      else
+        for (; it!=itend; ++it)
+          if (m.pointInPolygon(nb->b.x(*it), nb->b.y(*it)))
+            neighbours.push_back(*it);
+    }
+  for (size_t i = 4; i < 8; ++i)
+    if (delta[i] < 0)
+    {
+      nb = samelevel(i);
+      clip_nb = m.clip(nb->b);
+      if (clip_nb.getSize() < 3) continue;
+      std::list<void*>::const_iterator it = nb->getPoints().begin(),
+        itend = nb->getPoints().end();
+      if (b.coveredByPolygon(clip) == 4)
+        for (; it!=itend; ++it)
+          neighbours.push_back(*it);
+      else
+        for (; it!=itend; ++it)
+          if (m.pointInPolygon(nb->b.x(*it), nb->b.y(*it)))
+            neighbours.push_back(*it);
+    }
+
+  std::list<void*>::const_iterator it = points.begin(), ie = points.end();
+  /*
+   * Here we can do things fast
+   */
+  if (b.coveredByPolygon(clip) == 4)
+    for ( ; it != ie ; ++it)
+    {
+      std::list<void*>::const_iterator jt = it; ++jt;
+      for ( ; jt != ie; ++jt)
+        apply(*it, *jt);
+      for (int j = 0; j < neighbours.size(); ++j)
+        apply(*it, neighbours[j]);
+    }
+  else
+    /*
+     * Or we have to check more...
+     */
+    for ( ; it != ie ; ++it)
+    {
+      std::list<void*>::const_iterator jt = it; ++jt;
+      if (m.pointInPolygon(b.x(*it), b.y(*it)))
+      {
+        for ( ; jt != ie; ++jt)
+          if (m.pointInPolygon(b.x(*jt), b.y(*jt)))
+            apply(*it, *jt);
+
+      for (int j = 0; j < neighbours.size(); ++j)
+        apply(*it, neighbours[j]);
+    }
+  }
+
+}
+
 void SmartQuadtree::iteratebyn(void (*apply)(void*, void*),
                                void (*applybyn)(void*, void**),
                                unsigned char n)
