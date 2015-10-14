@@ -107,11 +107,10 @@ bool printQuadtree(void* it)
   if (p->green)
     glColor3ub(86, 185, 95);
   else {
-  if (p->draw)
-    glColor3ub(185, 95, 86);
-  else
-    glColor3ub(65, 65, 65);
-
+    if (p->draw)
+      glColor3ub(185, 95, 86);
+    else
+      glColor3ub(65, 65, 65);
   }
 
   glBegin(GL_POINTS);
@@ -134,6 +133,22 @@ bool printQuadtree(void* it)
   }
   // does not modify the quadtree
   return false;
+}
+
+void printLines(void* a, void* b)
+{
+  Point* p = (Point*)(a);
+  Point* q = (Point*)(b);
+  if (p->distance2(*q) < 16.)
+  {
+    glColor3ub(86, 185, 95);
+    glBegin(GL_LINES);
+    {
+      glVertex3f(p->x, p->y, 1.01);
+      glVertex3f(q->x, q->y, 1.01);
+    }
+    glEnd();
+  }
 }
 
 bool movePoints(void* p) {
@@ -228,6 +243,7 @@ void onDisplay(void)
   glPointSize(4.f);
   glLineWidth(1.f);
   q->iterate(printQuadtree);
+  q->iterate(*mask, printLines);
 
   // The lines for the first subdivision of the quadtree
   glColor3ub(200, 200, 200);

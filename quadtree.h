@@ -288,6 +288,9 @@ public:
   void iterate(bool (*apply)(void*));
 
   //! Iterate something for all pairs of neighbouring items
+  void iterate(const PolygonMask& m, void (*apply)(void*, void*));
+
+  //! Iterate something for all pairs of neighbouring items
   void iterate(void (*apply)(void*, void*));
 
   //! Iterate something for all pairs of neighbouring items
