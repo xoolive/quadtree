@@ -356,10 +356,10 @@ void calculateFPS()
 
 void onIdle(void) {
 
-//   SmartQuadtree<Point>::const_iterator it = q->begin();
-//   for ( ; it != q->end(); ++it)
-//     it->iterate();
-  q->iterate(movePoints);
+  SmartQuadtree<Point>::iterator it = q->begin();
+  for ( ; it != q->end(); ++it)
+    it->iterate();
+//   q->iterate(movePoints);
   checkCount = 0;
 #ifdef __INTEL_COMPILER
 //   q->iteratebyn(conflict, conflictby4, 4);

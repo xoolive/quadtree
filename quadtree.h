@@ -187,7 +187,7 @@ class SmartQuadtree
   std::list<T> points;
 
   // Just to help not iterating twice
-  std::list<T*> already;
+//   std::list<T*> already;
 
   // We keep a map of who is where
   std::unordered_map<T*, SmartQuadtree*> where;
@@ -214,7 +214,8 @@ class SmartQuadtree
 
 public:
 
-  struct const_iterator ;
+  struct const_iterator;
+  struct iterator;
 
   //! Constructor
   SmartQuadtree<T>(float center_x, float center_y, float dim_x, float dim_y,
@@ -236,6 +237,10 @@ public:
 
   //! Destructor
   ~SmartQuadtree<T>();
+
+  SmartQuadtree<T>::iterator begin();
+
+  SmartQuadtree<T>::iterator end();
 
   SmartQuadtree<T>::const_iterator begin() const;
 
@@ -300,7 +305,7 @@ public:
   void iterate(const PolygonMask& m, bool (*apply)(T&));
 
   //! Iterate something for all items
-  void iterate(bool (*apply)(T&));
+//   void iterate(bool (*apply)(T&));
 
   //! Iterate something for all pairs of neighbouring items
   void iterate(const PolygonMask& m, void (*apply)(T&, T&));
@@ -316,6 +321,7 @@ public:
   friend std::ostream& operator<<<> (std::ostream&, const SmartQuadtree<T>&);
   friend class Test_SmartQuadtree;
   friend struct const_iterator;
+  friend struct iterator;
 
 
 };
@@ -329,6 +335,8 @@ struct SmartQuadtree<T>::const_iterator
       const typename std::list<SmartQuadtree<T>*>::const_iterator& begin,
       const typename std::list<SmartQuadtree<T>*>::const_iterator& end);
 
+  const_iterator(const typename SmartQuadtree<T>::iterator& it);
+
   const_iterator operator++();
   typename SmartQuadtree<T>::const_iterator::reference operator*();
   typename SmartQuadtree<T>::const_iterator::pointer operator->();
@@ -341,6 +349,34 @@ private:
   typename std::list<SmartQuadtree<T>*>::const_iterator leafIterator, leafEnd;
   typename std::list<T>::const_iterator it, itEnd;
 
+};
+
+
+template<class T>
+struct SmartQuadtree<T>::iterator
+: std::iterator < std::input_iterator_tag, T >
+{
+
+  iterator(
+      const typename std::list<SmartQuadtree<T>*>::iterator& begin,
+      const typename std::list<SmartQuadtree<T>*>::iterator& end,
+      SmartQuadtree<T>* ancestor);
+
+  iterator operator++();
+  typename SmartQuadtree<T>::iterator::reference operator*();
+  typename SmartQuadtree<T>::iterator::pointer operator->();
+  bool operator==(const iterator&) const;
+  bool operator!=(const iterator&) const;
+
+private:
+
+  void advanceToNextLeaf();
+  typename std::list<SmartQuadtree<T>*>::iterator leafIterator, leafEnd;
+  typename std::list<T>::iterator it, itEnd;
+  SmartQuadtree<T>* ancestor;
+  std::list<T*> already;
+
+  friend class SmartQuadtree<T>::const_iterator;
 };
 
 #include "quadtree.hpp"

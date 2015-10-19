@@ -112,6 +112,19 @@ typename SmartQuadtree<T>::const_iterator SmartQuadtree<T>::end() const
   return SmartQuadtree<T>::const_iterator(leaves.end(), leaves.end());
 }
 
+
+template<typename T>
+typename SmartQuadtree<T>::iterator SmartQuadtree<T>::begin()
+{
+  return SmartQuadtree<T>::iterator(leaves.begin(), leaves.end(), this);
+}
+
+template<typename T>
+typename SmartQuadtree<T>::iterator SmartQuadtree<T>::end()
+{
+  return SmartQuadtree<T>::iterator(leaves.end(), leaves.end(), this);
+}
+
 template<typename T>
 bool SmartQuadtree<T>::insert(T pt)
 {
@@ -280,7 +293,12 @@ void SmartQuadtree<T>::iterate(const PolygonMask& m, bool (*apply)(T&))
   int nb = b.coveredByPolygon(clip);
 
   // the quadtree is inside the polygon
-  if (nb == 4) return iterate(apply);
+  if (nb == 4) {
+      //return iterate(apply);
+      SmartQuadtree<T>::iterator it = begin();
+      for (; it != end(); ++it)
+          apply(*it);
+  }
 
   if (children[0] != NULL)
   {
@@ -349,6 +367,16 @@ SmartQuadtree<T>::const_iterator::const_iterator(
 }
 
 template<typename T>
+SmartQuadtree<T>::const_iterator::const_iterator(
+    const typename SmartQuadtree<T>::iterator& a)
+{
+  leafIterator = a.leafIterator;
+  leafEnd = a.leafEnd;
+  it = a.it;
+  itEnd = a.itEnd;
+}
+
+template<typename T>
 void SmartQuadtree<T>::const_iterator::advanceToNextLeaf()
 {
   if (it == itEnd)
@@ -374,7 +402,6 @@ SmartQuadtree<T>::const_iterator::operator++()
   return *this;
 }
 
-// const SmartQuadtree::const_iterator::reference
 template<typename T>
 typename SmartQuadtree<T>::const_iterator::reference
 SmartQuadtree<T>::const_iterator::operator*()
@@ -398,6 +425,91 @@ SmartQuadtree<T>::const_iterator::operator!=(
     const typename SmartQuadtree<T>::const_iterator& rhs) const
 { return !(*this == rhs); }
 
+
+template<typename T>
+SmartQuadtree<T>::iterator::iterator(
+    const typename std::list<SmartQuadtree<T>*>::iterator& begin,
+    const typename std::list<SmartQuadtree<T>*>::iterator& end,
+    SmartQuadtree<T>* ancestor) : ancestor(ancestor)
+{
+  leafIterator = begin;
+  leafEnd = end;
+  if (begin != end)
+  {
+    it = (*leafIterator)->points.begin();
+    itEnd = (*leafIterator)->points.end();
+    advanceToNextLeaf();
+    assert(leafIterator != leafEnd ? it != itEnd : true);
+  }
+}
+
+template<typename T>
+void SmartQuadtree<T>::iterator::advanceToNextLeaf()
+{
+  if (it == itEnd || already.end() !=
+      std::find(already.begin(), already.end(), &(*it)))
+    do
+    {
+      ++leafIterator;
+      if (leafIterator == leafEnd) return;
+      it = (*leafIterator)->points.begin();
+      while (already.end() !=
+             std::find(already.begin(), already.end(), &(*it)))
+        ++it;
+      itEnd = (*leafIterator)->points.end();
+    } while (leafIterator == leafEnd);
+}
+
+
+template<typename T>
+typename SmartQuadtree<T>::iterator
+SmartQuadtree<T>::iterator::operator++()
+{
+  if (leafIterator == leafEnd) return *this;
+  assert (it != itEnd);
+  if (!(*leafIterator)->b.contains(&(*it)))
+  {
+    // Computing the proper neighbour is probably slower than finding it
+    // from the ancestor node...
+    SmartQuadtree<T>* previous = ancestor->where[&(*it)];
+    assert (previous != NULL);
+    ancestor->insert(*it);
+    SmartQuadtree<T>* current = ancestor->where[&(*it)];
+    assert (current != NULL);
+    if (current->location > previous->location)
+      already.push_back(&(*it));
+    it = (*leafIterator)->points.erase(it);
+  }
+  else
+    ++it;
+  if (it != itEnd) return *this;
+  advanceToNextLeaf();
+  return *this;
+}
+
+template<typename T>
+typename SmartQuadtree<T>::iterator::reference
+SmartQuadtree<T>::iterator::operator*()
+{ return it.operator*(); }
+
+template<typename T>
+typename SmartQuadtree<T>::iterator::pointer
+SmartQuadtree<T>::iterator::operator->()
+{ return it.operator->(); }
+
+template<typename T> bool
+SmartQuadtree<T>::iterator::operator==(
+    const typename SmartQuadtree<T>::iterator& rhs) const
+{
+  if (it == itEnd) return leafIterator == rhs.leafIterator;
+  return (it == rhs.it) && (leafIterator == rhs.leafIterator);
+}
+
+template<typename T> bool
+SmartQuadtree<T>::iterator::operator!=(
+    const typename SmartQuadtree<T>::iterator& rhs) const
+{ return !(*this == rhs); }
+/*
 template<typename T>
 void SmartQuadtree<T>::iterate(bool (*apply)(T&))
 {
@@ -434,7 +546,7 @@ void SmartQuadtree<T>::iterate(bool (*apply)(T&))
   }
   already.clear();
 }
-
+*/
 template<typename T>
 void SmartQuadtree<T>::iterate(void (*apply)(T&, T&))
 {
