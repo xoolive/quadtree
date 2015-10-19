@@ -20,7 +20,8 @@
 
 #include "neighbour.h"
 
-class SmartQuadtree;
+template<class T> class SmartQuadtree;
+
 class Boundary;
 
 class PolygonMask
@@ -67,7 +68,7 @@ class Boundary
   float dim_x, dim_y;
 
   //! Find the coordinates of the data
-  float (*x)(void*), (*y)(void*);
+  float (*x)(const void*), (*y)(const void*);
 
   //! Give some limitation to the size of the cells. This function shall return
   //! true if the the Boundary box must not be subdivided.
@@ -148,12 +149,15 @@ public:
   typedef bool (Boundary::*INTERSECT)
     (float, float, float, float, float&, float&) const;
 
-  friend class SmartQuadtree;
-  friend std::ostream& operator<<(std::ostream&, const SmartQuadtree&);
+  template<typename T> friend class SmartQuadtree;
+  template<typename T>
+  friend std::ostream& operator<< (std::ostream&, const SmartQuadtree<T>&);
 
 };
 
 class Test_SmartQuadtree;
+
+template<typename T>
 class SmartQuadtree
 {
   // Delimitates the quadrant
@@ -174,25 +178,28 @@ class SmartQuadtree
   int delta[8];
 
   // Children nodes
-  SmartQuadtree *children[4];
+  SmartQuadtree<T> *children[4];
 
   // Directions corresponding to children nodes
   static const unsigned char diags[4];
 
   // Data attached to the quadrant
-  std::list<void*> points;
+  std::list<T> points;
 
   // Just to help not iterating twice
-  std::list<void*> already;
+  std::list<T*> already;
 
   // We keep a map of who is where
-  std::unordered_map<void*, SmartQuadtree*> where;
+  std::unordered_map<T*, SmartQuadtree*> where;
+
+  // All leaves of the Quadtree, in order
+  std::list<SmartQuadtree*> leaves;
 
   // Capacity of each cell
   const unsigned int capacity;
 
   // Ancestor
-  SmartQuadtree* ancestor;
+  SmartQuadtree<T>* ancestor;
 
   //! Increments the delta in direction dir
   //! Returns true if you have children
@@ -207,9 +214,11 @@ class SmartQuadtree
 
 public:
 
+  struct const_iterator ;
+
   //! Constructor
-  SmartQuadtree(float center_x, float center_y, float dim_x, float dim_y,
-                   unsigned int capacity) :
+  SmartQuadtree<T>(float center_x, float center_y, float dim_x, float dim_y,
+                unsigned int capacity) :
     b(center_x, center_y, dim_x, dim_y), location(0), level(0),
     capacity(capacity), ancestor(this)
   {
@@ -217,47 +226,53 @@ public:
     children[2] = NULL; children[3] = NULL;
     delta[0] = 2; delta[1] = 2; delta[2] = 2; delta[3] = 2;
     delta[4] = 2; delta[5] = 2; delta[6] = 2; delta[7] = 2;
+    leaves.push_back(this);
   }
 
   //! Constructor of a child quadtree
   // SW -> 0, SE -> 1, NW -> 2, NE -> 3
-  SmartQuadtree(const SmartQuadtree&, unsigned char);
+  SmartQuadtree<T>(const SmartQuadtree<T>&, unsigned char,
+                   typename std::list<SmartQuadtree<T>*>::iterator&);
 
   //! Destructor
-  ~SmartQuadtree();
+  ~SmartQuadtree<T>();
+
+  SmartQuadtree<T>::const_iterator begin() const;
+
+  SmartQuadtree<T>::const_iterator end() const;
 
   //! Find same level neighbour in determined direction
-  SmartQuadtree* samelevel(unsigned char) const;
+  SmartQuadtree<T>* samelevel(unsigned char) const;
 
   //! Insert one piece of data to the quadrant
   //! Returns true if the data has been inserted
-  bool insert(void*);
+  bool insert(T);
 
   //! Update a data in current subtree, returns true if changed cell
-  bool updateData(void* p);
+  bool updateData(T& p);
 
   //! Removes a data in current subtree
-  void removeData(void* p);
+  void removeData(T& p);
 
   //! Returns true if the current cell may contain the data
-  bool contains(void* p) { return b.contains(p); }
+  bool contains(T& p) { return b.contains(&p); }
 
   //! Returns the subquadrant pointed by location code
-  SmartQuadtree* getQuadrant(unsigned long location,
-                             unsigned short level) const;
+  SmartQuadtree<T>* getQuadrant(unsigned long location,
+                                unsigned short level) const;
 
   //! Returns the data embedded to current quadrant
-  inline const std::list<void*>& getPoints() const { return points; }
+  inline const std::list<T>& getPoints() const { return points; }
 
   //! Returns a point to the proper child 0->SW, 1->SE, 2->NW, 3->NE
-  inline const SmartQuadtree* getChild(unsigned char i) const
+  inline const SmartQuadtree<T>* getChild(unsigned char i) const
   {
     assert (i<4);
     return children[i];
   }
 
   //! Sets the getters in the Boundary
-  inline void setXYFcts(float (*x)(void*), float (*y)(void*))
+  inline void setXYFcts(float (*x)(const void*), float (*y)(const void*))
   { b.x = x; b.y = y; }
 
   //! Sets the limitation function; if NULL, behaves as no restriction
@@ -282,25 +297,54 @@ public:
 
   //! Iterate something for all items
   //! Adjusts the quadtree if the items move
-  void iterate(const PolygonMask& m, bool (*apply)(void*));
+  void iterate(const PolygonMask& m, bool (*apply)(T&));
 
   //! Iterate something for all items
-  void iterate(bool (*apply)(void*));
+  void iterate(bool (*apply)(T&));
 
   //! Iterate something for all pairs of neighbouring items
-  void iterate(const PolygonMask& m, void (*apply)(void*, void*));
+  void iterate(const PolygonMask& m, void (*apply)(T&, T&));
 
   //! Iterate something for all pairs of neighbouring items
-  void iterate(void (*apply)(void*, void*));
+  void iterate(void (*apply)(T&, T&));
 
   //! Iterate something for all pairs of neighbouring items
   //! Vectorised version
-  void iteratebyn(void (*apply)(void*, void*),
-                  void (*applybyn)(void*,void**), unsigned char n);
+  void iteratebyn(void (*apply)(T&, T&),
+                  void (*applybyn)(T&, T&), unsigned char n);
 
-  friend std::ostream& operator<<(std::ostream&, const SmartQuadtree&);
+  friend std::ostream& operator<<<> (std::ostream&, const SmartQuadtree<T>&);
   friend class Test_SmartQuadtree;
+  friend struct const_iterator;
+
 
 };
+
+template<class T>
+struct SmartQuadtree<T>::const_iterator
+: std::iterator < std::input_iterator_tag, const T >
+{
+
+  const_iterator(
+      const typename std::list<SmartQuadtree<T>*>::const_iterator& begin,
+      const typename std::list<SmartQuadtree<T>*>::const_iterator& end);
+
+  const_iterator operator++();
+  typename SmartQuadtree<T>::const_iterator::reference operator*();
+  typename SmartQuadtree<T>::const_iterator::pointer operator->();
+  bool operator==(const const_iterator&) const;
+  bool operator!=(const const_iterator&) const;
+
+private:
+
+  void advanceToNextLeaf();
+  typename std::list<SmartQuadtree<T>*>::const_iterator leafIterator, leafEnd;
+  typename std::list<T>::const_iterator it, itEnd;
+
+};
+
+#include "quadtree.hpp"
+
+typedef SmartQuadtree<void*> OpaqueSmartQuadtree;
 
 #endif // QUADTREE_H

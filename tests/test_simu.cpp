@@ -27,7 +27,6 @@
 
 GLint height = 600;
 GLint width = 900;
-SmartQuadtree* q = NULL;
 float center_x, center_y;
 float zoom;
 int mouse_x, mouse_y, mouse_b, mouse_s;
@@ -38,7 +37,7 @@ PolygonMask* mask;
 struct Point {
 
   float x, y, vx, vy;
-  bool draw, green;
+  mutable bool draw, green;
   std::list<Point*> neighbours;
 
   Point(float x, float y) : x(x), y(y), draw(false), green(false)
@@ -64,8 +63,10 @@ struct Point {
 
 };
 
-float getX(void* p) { return ((Point*) p)->x; }
-float getY(void* p) { return ((Point*) p)->y; }
+SmartQuadtree<Point>* q = NULL;
+
+float getX(const void* p) { return ((Point*) p)->x; }
+float getY(const void* p) { return ((Point*) p)->y; }
 
 bool limitation(Boundary* b) {
   float sq_size = b->norm_infty();
@@ -78,7 +79,8 @@ std::ostream& operator<<(std::ostream& os, const Point& p)
   return os;
 }
 
-std::ostream& operator<<(std::ostream& os, const SmartQuadtree& e)
+template<>
+std::ostream& operator<<(std::ostream& os, const SmartQuadtree<Point>& e)
 {
   for (size_t i=0; i<e.level; ++i) os << "  ";
   os << "{" << std::endl;
@@ -86,10 +88,10 @@ std::ostream& operator<<(std::ostream& os, const SmartQuadtree& e)
   os << "  " <<
     e.b.center_x << ", " << e.b.center_y <<
     " (0x" << std::hex << e.location << ") #" << std::dec << e.level << " -> ";
-  std::list<void*>::const_iterator it = e.points.begin(),
+  std::list<Point>::const_iterator it = e.points.begin(),
     ie = e.points.end();
   for ( ; it != ie; ++it)
-    os << *((Point*)(*it)) << " ";
+    os << (*it) << " ";
   os << std::endl;
   if (NULL != e.getChild(0))
     os <<
@@ -100,82 +102,39 @@ std::ostream& operator<<(std::ostream& os, const SmartQuadtree& e)
   return os;
 }
 
-bool printQuadtree(void* it)
+void printLines(Point& p, Point& q)
 {
-  Point* p = (Point*)(it);
-
-  if (p->green)
-    glColor3ub(86, 185, 95);
-  else {
-    if (p->draw)
-      glColor3ub(185, 95, 86);
-    else
-      glColor3ub(65, 65, 65);
-  }
-
-  glBegin(GL_POINTS);
-  {
-    glVertex3f(p->x, p->y, 1);
-  }
-  glEnd();
-
-  std::list<Point*>::iterator pit = p->neighbours.begin(),
-    pend = p->neighbours.end();
-  for ( ; pit != pend; ++pit)
-  {
-    glColor3ub(185, 95, 86);
-    glBegin(GL_LINES);
-    {
-      glVertex3f(p->x, p->y, 1);
-      glVertex3f((*pit)->x, (*pit)->y, 1);
-    }
-    glEnd();
-  }
-  // does not modify the quadtree
-  return false;
-}
-
-void printLines(void* a, void* b)
-{
-  Point* p = (Point*)(a);
-  Point* q = (Point*)(b);
-  if (p->distance2(*q) < 16.)
+  if (p.distance2(q) < 16.)
   {
     glColor3ub(86, 185, 95);
     glBegin(GL_LINES);
     {
-      glVertex3f(p->x, p->y, 1.01);
-      glVertex3f(q->x, q->y, 1.01);
+      glVertex3f(p.x, p.y, 1.01);
+      glVertex3f(q.x, q.y, 1.01);
     }
     glEnd();
   }
 }
 
-bool movePoints(void* p) {
-  ((Point*) p)->iterate();
+bool movePoints(Point& p) {
+  p.iterate();
   // may modify the quadtree
   return true;
 }
 
-void conflict(void* pv1, void* pv2)
+void conflict(Point& p1, Point& p2)
 {
   ++checkCount;
-  Point *p1 = (Point*) pv1, *p2 = (Point*) pv2;
-  if (p1->distance2(*p2) < 16.)
+  if (p1.distance2(p2) < 16.)
   {
-    p1->draw = true;
-    p2->draw = true;
-    p1->neighbours.push_back(p2);
+    p1.draw = true;
+    p2.draw = true;
+    p1.neighbours.push_back(&p2);
   }
 }
 
-bool greenify(void* p) {
-  ((Point*) p)->green = true;
-  return false;
-}
-
-bool ungreenify(void* p) {
-  ((Point*) p)->green = false;
+bool greenify(Point& p) {
+  p.green = true;
   return false;
 }
 
@@ -242,7 +201,40 @@ void onDisplay(void)
 
   glPointSize(4.f);
   glLineWidth(1.f);
-  q->iterate(printQuadtree);
+  SmartQuadtree<Point>::const_iterator it = q->begin();// itEnd = q->end();
+  for ( ; it != q->end(); ++it)
+  {
+    //   q->iterate(printQuadtree);
+    if (it->green)
+      glColor3ub(86, 185, 95);
+    else {
+      if (it->draw)
+        glColor3ub(185, 95, 86);
+      else
+        glColor3ub(65, 65, 65);
+    }
+
+    glBegin(GL_POINTS);
+    {
+      glVertex3f(it->x, it->y, 1);
+    }
+    glEnd();
+
+    std::list<Point*>::const_iterator pit = it->neighbours.begin(),
+      pend = it->neighbours.end();
+    for ( ; pit != pend; ++pit)
+    {
+      glColor3ub(185, 95, 86);
+      glBegin(GL_LINES);
+      {
+        glVertex3f(it->x, it->y, 1);
+        glVertex3f((*pit)->x, (*pit)->y, 1);
+      }
+      glEnd();
+    }
+
+  }
+
   q->iterate(*mask, printLines);
 
   // The lines for the first subdivision of the quadtree
@@ -326,8 +318,12 @@ void onKeyboard(unsigned char key, int x, int y)
     if (zoom < 100) zoom = 100;
     break;
   case 'g':
-    q->iterate(ungreenify);
-    q->iterate(*mask, greenify);
+    {
+      SmartQuadtree<Point>::const_iterator it = q->begin();
+      for ( ; it != q->end(); ++it)
+        it->green = false;
+      q->iterate(*mask, greenify);
+    }
     break;
   case 'q':
   case 27: // ESC
@@ -360,10 +356,13 @@ void calculateFPS()
 
 void onIdle(void) {
 
+//   SmartQuadtree<Point>::const_iterator it = q->begin();
+//   for ( ; it != q->end(); ++it)
+//     it->iterate();
   q->iterate(movePoints);
   checkCount = 0;
 #ifdef __INTEL_COMPILER
-  q->iteratebyn(conflict, conflictby4, 4);
+//   q->iteratebyn(conflict, conflictby4, 4);
 #else
   q->iterate(conflict);
 #endif
@@ -392,15 +391,15 @@ int main(int argc, char* argv[])
   glutDisplayFunc(onDisplay);
   glutIdleFunc(onIdle);
 
-  q = new SmartQuadtree((float) width/2., (float) height/2.,
-                        (float) width/2., (float) height/2., 16);
+  q = new SmartQuadtree<Point>((float) width/2., (float) height/2.,
+                               (float) width/2., (float) height/2., 16);
 
   q->setXYFcts(getX, getY);
   q->setLimitation(limitation);
 
   for (int i = 0; i< 20000; ++i)
-    q->insert(new Point((((float) rand())/ (float) RAND_MAX) * width,
-                        (((float) rand())/ (float) RAND_MAX) * height));
+    q->insert(Point((((float) rand())/ (float) RAND_MAX) * width,
+                    (((float) rand())/ (float) RAND_MAX) * height));
 
   std::vector<float> polyX, polyY;
   polyX.push_back(225); polyX.push_back(225); polyX.push_back(450);
