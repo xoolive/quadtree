@@ -61,18 +61,18 @@ void Test_SmartQuadtree::RunTest_SmartQuadtree(Logger& log)
   q.setXYFcts(getX, getY);
   q.setLimitation(limitation);
 
-  q.insert(Point(1.  , 1.  ));
-  q.insert(Point(1.  , 2.  ));
-  q.insert(Point(-2. , 1.  ));
-  q.insert(Point(0.  , 2.  ));
-  q.insert(Point(0.1 , 2.  ));
-  q.insert(Point(1.  , -1. ));
-  q.insert(Point(1.  , 3.  ));
-  q.insert(Point(-2. , 2.  ));
-  q.insert(Point(1.2 , 1.3 ));
-  q.insert(Point(0.1 , 0.3 ));
-  q.insert(Point(0.1 , 0.1 ));
-  q.insert(Point(0.1 , 0.2 ));
+  q.insert({1.  , 1.  });
+  q.insert({1.  , 2.  });
+  q.insert({-2. , 1.  });
+  q.insert({0.  , 2.  });
+  q.insert({0.1 , 2.  });
+  q.insert({1.  , -1. });
+  q.insert({1.  , 3.  });
+  q.insert({-2. , 2.  });
+  q.insert({1.2 , 1.3 });
+  q.insert({0.1 , 0.3 });
+  q.insert({0.1 , 0.1 });
+  q.insert({0.1 , 0.2 });
 
   log.message(__LINE__, "Tests of neighbourhood in quadtrees");
 

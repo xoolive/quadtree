@@ -355,7 +355,8 @@ int main(int argc, char* argv[])
 
   mask = new PolygonMask(polyX, polyY, 5);
 
-  SmartQuadtree<Point>::const_iterator it = q->masked(mask).begin();
+  // const_iterator is tested inside onKeyboard('g')
+  SmartQuadtree<Point>::iterator it = q->masked(mask).begin();
   for ( ; it != q->end(); ++it)
     (*it).green = true;
 

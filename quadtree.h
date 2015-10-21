@@ -1,8 +1,7 @@
 /*
  * Interface for a smart version of quadtrees specialised for tracking moving
- * objects. When iterating over elements in the quadtree, a simple flag
- * (boolean) indicates whether the element might have moved to a neighbouring
- * subdivision.
+ * objects. Iterators and their const counterparts let you process objects and
+ * ajust the quadtree structure when points are moved.
  *
  * Xavier Olive, 28 nov. 2014
  */
@@ -311,7 +310,7 @@ public:
   unsigned char getDepth() const;
 
   //! Mask the quadtree
-  MaskedQuadtree<T> masked(PolygonMask* m) const
+  MaskedQuadtree<T> masked(PolygonMask* m)
   { return MaskedQuadtree<T>(*this, m); }
 
   //! Iterate something for all pairs of neighbouring items
@@ -352,7 +351,7 @@ private:
   typename std::list<SmartQuadtree<T>*>::const_iterator leafIterator, leafEnd;
   typename std::list<T>::const_iterator it, itEnd;
 
-  // current leaf: number of covered summits
+  // Current leaf: number of covered summits
   unsigned char aux;
   // NULL if no mask
   PolygonMask* polygonmask;
@@ -369,7 +368,8 @@ struct SmartQuadtree<T>::iterator
 
   iterator(
       const typename std::list<SmartQuadtree<T>*>::iterator& begin,
-      const typename std::list<SmartQuadtree<T>*>::iterator& end);
+      const typename std::list<SmartQuadtree<T>*>::iterator& end,
+      PolygonMask* mask = NULL);
 
   iterator operator++();
   typename SmartQuadtree<T>::iterator::reference operator*();
@@ -379,10 +379,18 @@ struct SmartQuadtree<T>::iterator
 
 private:
 
-  void advanceToNextLeaf();
   typename std::list<SmartQuadtree<T>*>::iterator leafIterator, leafEnd;
   typename std::list<T>::iterator it, itEnd;
+
+  // Elements already parsed
   std::list<T*> already;
+
+  // Current leaf: number of covered summits
+  unsigned char aux;
+  // NULL if no mask
+  PolygonMask* polygonmask;
+
+  void advanceToNextLeaf();
 
   friend struct SmartQuadtree<T>::const_iterator;
 };
@@ -392,16 +400,16 @@ class MaskedQuadtree
 {
 public:
 
-  MaskedQuadtree(const SmartQuadtree<T>& q, PolygonMask* m):
+  MaskedQuadtree(SmartQuadtree<T>& q, PolygonMask* m):
     quadtree(q), polygonmask(m) { }
 
-// typename SmartQuadtree<T>::iterator begin();
-// typename SmartQuadtree<T>::iterator end();
+  typename SmartQuadtree<T>::iterator begin();
+  typename SmartQuadtree<T>::iterator end();
   typename SmartQuadtree<T>::const_iterator begin() const;
   typename SmartQuadtree<T>::const_iterator end() const;
 
 private:
-  const SmartQuadtree<T>& quadtree;
+  SmartQuadtree<T>& quadtree;
   PolygonMask* polygonmask;
 
 };
