@@ -8,12 +8,9 @@ struct Point {
   Point(float x, float y) : x(x), y(y) {}
 };
 
-float getX(const void* p) { return ((Point*) p)->x; }
-float getY(const void* p) { return ((Point*) p)->y; }
-
-bool limitation(Boundary* b) {
-  return (b->norm_l1() < (1 + FLT_EPSILON));
-}
+template<>
+bool BoundaryLimit<Boundary>::limitation(const Boundary& b)
+{ return (b.norm_l1() < (1 + FLT_EPSILON)); }
 
 std::ostream& operator<<(std::ostream& os, const Point& p)
 {
@@ -58,8 +55,6 @@ void Test_SmartQuadtree::RunTest_SmartQuadtree(Logger& log)
 {
 
   SmartQuadtree<Point> q(0., 0., 4., 4., 4);
-  q.setXYFcts(getX, getY);
-  q.setLimitation(limitation);
 
   q.insert({1.  , 1.  });
   q.insert({1.  , 2.  });

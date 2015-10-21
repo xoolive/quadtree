@@ -65,11 +65,22 @@ struct Point {
 
 SmartQuadtree<Point>* q = NULL;
 
-float getX(const void* p) { return ((Point*) p)->x; }
-float getY(const void* p) { return ((Point*) p)->y; }
+/*
+ * If all of a sudden, x and y are private, or become lat/lon, you can rewrite
+ * this function according to the following template:
+ *
+ * template<>
+ * struct BoundaryXY<Point>
+ * {
+ *   static double getX(const Point& p) { return p.x; }
+ *   static double getY(const Point& p) { return p.y; }
+ * };
+*/
 
-bool limitation(Boundary* b) {
-  float sq_size = b->norm_infty();
+template<>
+bool BoundaryLimit<Boundary>::limitation(const Boundary& b)
+{
+  float sq_size = b.norm_infty();
   return (sq_size < (16. + FLT_EPSILON));
 }
 
@@ -151,7 +162,6 @@ void onDisplay(void)
   SmartQuadtree<Point>::const_iterator it = q->begin();
   for ( ; it != q->end(); ++it)
   {
-    //   q->iterate(printQuadtree);
     if (it->green)
       glColor3ub(86, 185, 95);
     else {
@@ -338,9 +348,6 @@ int main(int argc, char* argv[])
 
   q = new SmartQuadtree<Point>((float) width/2., (float) height/2.,
                                (float) width/2., (float) height/2., 16);
-
-  q->setXYFcts(getX, getY);
-  q->setLimitation(limitation);
 
   for (int i = 0; i< 20000; ++i)
     q->insert(Point((((float) rand())/ (float) RAND_MAX) * width,
