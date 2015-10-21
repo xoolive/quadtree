@@ -78,6 +78,7 @@ PolygonMask PolygonMask::clip(const Boundary& box) const
   for (size_t i = 0; i < 4; ++i)
   {
     xIn = xOut; yIn = yOut; xOut.clear(); yOut.clear();
+    if (xIn.size() == 0) break;
     float xfrom = xIn.back(), yfrom = yIn.back();
     std::vector<float>::iterator xpoly = xIn.begin(), ypoly = yIn.begin();
     std::vector<float>::iterator xend = xIn.end();
@@ -120,7 +121,7 @@ bool Boundary::contains(float x, float y)
           (y > center_y - dim_y - FLT_EPSILON));
 }
 
-int Boundary::coveredByPolygon(const PolygonMask& m)
+int Boundary::coveredByPolygon(const PolygonMask& m) const
 {
   int nb = 0;
 

@@ -13,6 +13,8 @@
 #include <vector>
 #include <algorithm>
 
+using std::list;
+
 template<typename T>
 const unsigned char SmartQuadtree<T>::diags[] =
 { SOUTHWEST, SOUTHEAST, NORTHWEST, NORTHEAST };
@@ -51,19 +53,19 @@ SmartQuadtree<T>* SmartQuadtree<T>::getQuadrant(unsigned long location,
 template<typename T>
 SmartQuadtree<T>::SmartQuadtree(const SmartQuadtree<T>& e,
                                 unsigned char subdivision,
-                                typename std::list<SmartQuadtree<T>*>::iterator& whereto)
-  : b(e.b), capacity(e.capacity)
+                                typename list<SmartQuadtree<T>*>::iterator& w)
+: b(e.b), capacity(e.capacity)
 {
 
   assert(b.limitfct != NULL);
-
-  whereto = ancestor->leaves.insert(whereto, this);
 
   for (int i = 0; i<4; ++i) children[i] = NULL;
 
   location = (e.location << 2) + subdivision;
   level    = e.level + 1;
   ancestor = e.ancestor;
+
+  w = ancestor->leaves.insert(w, this);
 
   if (subdivision > 1) // north
     b.center_y = e.b.center_y + e.b.dim_y / 2.;
@@ -102,28 +104,19 @@ SmartQuadtree<T>::~SmartQuadtree()
 
 template<typename T>
 typename SmartQuadtree<T>::const_iterator SmartQuadtree<T>::begin() const
-{
-  return SmartQuadtree<T>::const_iterator(leaves.begin(), leaves.end());
-}
+{ return SmartQuadtree<T>::const_iterator(leaves.begin(), leaves.end()); }
 
 template<typename T>
 typename SmartQuadtree<T>::const_iterator SmartQuadtree<T>::end() const
-{
-  return SmartQuadtree<T>::const_iterator(leaves.end(), leaves.end());
-}
-
+{ return SmartQuadtree<T>::const_iterator(leaves.end(), leaves.end()); }
 
 template<typename T>
 typename SmartQuadtree<T>::iterator SmartQuadtree<T>::begin()
-{
-  return SmartQuadtree<T>::iterator(leaves.begin(), leaves.end(), this);
-}
+{ return SmartQuadtree<T>::iterator(leaves.begin(), leaves.end()); }
 
 template<typename T>
 typename SmartQuadtree<T>::iterator SmartQuadtree<T>::end()
-{
-  return SmartQuadtree<T>::iterator(leaves.end(), leaves.end(), this);
-}
+{ return SmartQuadtree<T>::iterator(leaves.end(), leaves.end()); }
 
 template<typename T>
 bool SmartQuadtree<T>::insert(T pt)
@@ -140,16 +133,16 @@ bool SmartQuadtree<T>::insert(T pt)
 
   if (NULL == children[0])
   {
-    typename std::list<SmartQuadtree<T>*>::iterator whereto =
+    typename list<SmartQuadtree<T>*>::iterator w =
       std::find(ancestor->leaves.begin(), ancestor->leaves.end(), this);
 
-    assert(whereto != ancestor->leaves.end());
-    whereto = ancestor->leaves.erase(whereto);
+    assert(w != ancestor->leaves.end());
+    w = ancestor->leaves.erase(w);
 
-    children[0] = new SmartQuadtree(*this, 0, whereto);
-    children[1] = new SmartQuadtree(*this, 1, whereto);
-    children[2] = new SmartQuadtree(*this, 2, whereto);
-    children[3] = new SmartQuadtree(*this, 3, whereto);
+    children[0] = new SmartQuadtree(*this, 0, w);
+    children[1] = new SmartQuadtree(*this, 1, w);
+    children[2] = new SmartQuadtree(*this, 2, w);
+    children[3] = new SmartQuadtree(*this, 3, w);
 
     // Update neighbour info
     for (unsigned int i = 0; i < 8; ++i)
@@ -160,7 +153,7 @@ bool SmartQuadtree<T>::insert(T pt)
     // Forward data to children
     //std::for_each (points.begin(), points.end(),
     //               [=](void* p) { this->insert(p); } );
-    for(typename std::list<T>::iterator it = points.begin();
+    for (typename list<T>::iterator it = points.begin();
         it != points.end(); ++it)
       this->insert(*it);
     points.clear();
@@ -283,7 +276,7 @@ void SmartQuadtree<T>::updateDelta(unsigned char dir)
     if (children[1]->samelevel(dir)->children[0] != NULL)
       children[1]->delta[dir] = 1;
 }
-
+/*
 template<typename T>
 void SmartQuadtree<T>::iterate(const PolygonMask& m, bool (*apply)(T&))
 {
@@ -309,7 +302,7 @@ void SmartQuadtree<T>::iterate(const PolygonMask& m, bool (*apply)(T&))
     return;
   }
 
-  typename std::list<T>::iterator it = points.begin(), ie = points.end();
+  typename list<T>::iterator it = points.begin(), ie = points.end();
   while ( it != ie )
     if (m.pointInPolygon(b.x(&(*it)), b.y(&(*it))))
       if (apply(*it))
@@ -325,8 +318,8 @@ void SmartQuadtree<T>::iterate(const PolygonMask& m, bool (*apply)(T&))
     else ++it;
 
 }
-
-template<typename T>
+*/
+/*template<typename T>
 bool SmartQuadtree<T>::updateData(T& p)
 {
   SmartQuadtree* e = ancestor->where[&p];
@@ -338,7 +331,7 @@ bool SmartQuadtree<T>::updateData(T& p)
   ancestor->insert(p);
   return true;
 }
-
+*/
 template<typename T>
 void SmartQuadtree<T>::removeData(T& p)
 {
@@ -352,16 +345,34 @@ void SmartQuadtree<T>::removeData(T& p)
 
 template<typename T>
 SmartQuadtree<T>::const_iterator::const_iterator(
-    const typename std::list<SmartQuadtree<T>*>::const_iterator& begin,
-    const typename std::list<SmartQuadtree<T>*>::const_iterator& end)
+    const typename list<SmartQuadtree<T>*>::const_iterator& begin,
+    const typename list<SmartQuadtree<T>*>::const_iterator& end,
+    PolygonMask* mask) : polygonmask(mask)
 {
   leafIterator = begin;
   leafEnd = end;
+  aux = 4; // Default case: polygonmask is not set
   if (begin != end)
   {
     it = (*leafIterator)->points.begin();
     itEnd = (*leafIterator)->points.end();
+    if (polygonmask != NULL)
+    {
+      // In case the first leaf is out of the polygon
+      PolygonMask clip = polygonmask->clip((*leafIterator)->b);
+      aux = (*leafIterator)->b.coveredByPolygon(clip);
+    }
+    // In case it = itEnd
     advanceToNextLeaf();
+    assert(leafIterator != leafEnd ? it != itEnd : true);
+    if (aux < 4)
+      // This only happens if polygonmask is set
+      while (!polygonmask->pointInPolygon((*leafIterator)->b.x(&(*it)),
+                                          (*leafIterator)->b.y(&(*it))))
+      {
+        ++it;
+        advanceToNextLeaf();
+      }
     assert(leafIterator != leafEnd ? it != itEnd : true);
   }
 }
@@ -370,6 +381,8 @@ template<typename T>
 SmartQuadtree<T>::const_iterator::const_iterator(
     const typename SmartQuadtree<T>::iterator& a)
 {
+  polygonmask = NULL;
+  aux = 4;
   leafIterator = a.leafIterator;
   leafEnd = a.leafEnd;
   it = a.it;
@@ -384,11 +397,16 @@ void SmartQuadtree<T>::const_iterator::advanceToNextLeaf()
     {
       ++leafIterator;
       if (leafIterator == leafEnd) return;
+      if (polygonmask != NULL)
+      {
+        PolygonMask clip = polygonmask->clip((*leafIterator)->b);
+        if (clip.getSize() < 3) continue;
+        aux = (*leafIterator)->b.coveredByPolygon(clip);
+      }
       it = (*leafIterator)->points.begin();
       itEnd = (*leafIterator)->points.end();
-    } while (leafIterator == leafEnd);
+    } while (it == itEnd);
 }
-
 
 template<typename T>
 typename SmartQuadtree<T>::const_iterator
@@ -397,8 +415,21 @@ SmartQuadtree<T>::const_iterator::operator++()
   if (leafIterator == leafEnd) return *this;
   assert (it != itEnd);
   ++it;
-  if (it != itEnd) return *this;
   advanceToNextLeaf();
+  if (aux < 4)
+  {
+    // If a polygonmask is set, we want to ensure than (*it) is inside
+    assert(polygonmask != NULL);
+    while ((leafIterator != leafEnd) &&
+           !polygonmask->pointInPolygon((*leafIterator)->b.x(&(*it)),
+                                        (*leafIterator)->b.y(&(*it)))
+          )
+    {
+      ++it;
+      advanceToNextLeaf();
+    }
+  }
+  assert(leafIterator != leafEnd ? it != itEnd : true);
   return *this;
 }
 
@@ -428,9 +459,8 @@ SmartQuadtree<T>::const_iterator::operator!=(
 
 template<typename T>
 SmartQuadtree<T>::iterator::iterator(
-    const typename std::list<SmartQuadtree<T>*>::iterator& begin,
-    const typename std::list<SmartQuadtree<T>*>::iterator& end,
-    SmartQuadtree<T>* ancestor) : ancestor(ancestor)
+    const typename list<SmartQuadtree<T>*>::iterator& begin,
+    const typename list<SmartQuadtree<T>*>::iterator& end)
 {
   leafIterator = begin;
   leafEnd = end;
@@ -457,7 +487,7 @@ void SmartQuadtree<T>::iterator::advanceToNextLeaf()
              std::find(already.begin(), already.end(), &(*it)))
         ++it;
       itEnd = (*leafIterator)->points.end();
-    } while (leafIterator == leafEnd);
+    } while (it == itEnd);
 }
 
 
@@ -471,10 +501,10 @@ SmartQuadtree<T>::iterator::operator++()
   {
     // Computing the proper neighbour is probably slower than finding it
     // from the ancestor node...
-    SmartQuadtree<T>* previous = ancestor->where[&(*it)];
+    SmartQuadtree<T>* previous = (*leafIterator)->ancestor->where[&(*it)];
     assert (previous != NULL);
-    ancestor->insert(*it);
-    SmartQuadtree<T>* current = ancestor->where[&(*it)];
+    (*leafIterator)->ancestor->insert(*it);
+    SmartQuadtree<T>* current = (*leafIterator)->ancestor->where[&(*it)];
     assert (current != NULL);
     if (current->location > previous->location)
       already.push_back(&(*it));
@@ -565,7 +595,7 @@ void SmartQuadtree<T>::iterate(void (*apply)(T&, T&))
     if (delta[i] < 1) {
       nb = samelevel(i);
       assert (nb != NULL);
-      typename std::list<T>::const_iterator it = nb->getPoints().begin();
+      typename list<T>::const_iterator it = nb->getPoints().begin();
       for ( ; it != nb->getPoints().end(); ++it)
         neighbours.push_back(&(*it));
     }
@@ -574,16 +604,15 @@ void SmartQuadtree<T>::iterate(void (*apply)(T&, T&))
     {
       nb = samelevel(i);
       assert (nb != NULL);
-      typename std::list<T>::const_iterator it = nb->getPoints().begin();
+      typename list<T>::const_iterator it = nb->getPoints().begin();
       for ( ; it != nb->getPoints().end(); ++it)
         neighbours.push_back(&(*it));
     }
 
-  typename std::list<T>::iterator it = points.begin(),
-           ie = points.end();
+  typename list<T>::iterator it = points.begin(), ie = points.end();
   for ( ; it != ie ; ++it)
   {
-    typename std::list<T>::iterator jt = it; ++jt;
+    typename list<T>::iterator jt = it; ++jt;
     for ( ; jt != ie; ++jt)
       apply(*it, *jt);
     for (int j = 0; j < neighbours.size(); ++j)
@@ -616,7 +645,7 @@ void SmartQuadtree<T>::iterate(const PolygonMask& m, void (*apply)(T&, T&))
       nb = samelevel(i);
       clip_nb = m.clip(nb->b);
       if (clip_nb.getSize() < 3) continue;
-      typename std::list<T>::const_iterator it = nb->getPoints().begin(),
+      typename list<T>::const_iterator it = nb->getPoints().begin(),
         itend = nb->getPoints().end();
      if (b.coveredByPolygon(clip) == 4)
         for (; it!=itend; ++it)
@@ -632,7 +661,7 @@ void SmartQuadtree<T>::iterate(const PolygonMask& m, void (*apply)(T&, T&))
       nb = samelevel(i);
       clip_nb = m.clip(nb->b);
       if (clip_nb.getSize() < 3) continue;
-      typename std::list<T>::const_iterator it = nb->getPoints().begin(),
+      typename list<T>::const_iterator it = nb->getPoints().begin(),
         itend = nb->getPoints().end();
       if (b.coveredByPolygon(clip) == 4)
         for (; it!=itend; ++it)
@@ -643,14 +672,14 @@ void SmartQuadtree<T>::iterate(const PolygonMask& m, void (*apply)(T&, T&))
             neighbours.push_back(&(*it));
     }
 
-  typename std::list<T>::iterator it = points.begin(), ie = points.end();
+  typename list<T>::iterator it = points.begin(), ie = points.end();
   /*
    * Here we can do things fast
    */
   if (b.coveredByPolygon(clip) == 4)
     for ( ; it != ie ; ++it)
     {
-      typename std::list<T>::iterator jt = it; ++jt;
+      typename list<T>::iterator jt = it; ++jt;
       for ( ; jt != ie; ++jt)
         apply(*it, *jt);
       for (int j = 0; j < neighbours.size(); ++j)
@@ -663,7 +692,7 @@ void SmartQuadtree<T>::iterate(const PolygonMask& m, void (*apply)(T&, T&))
      */
     for ( ; it != ie ; ++it)
     {
-      typename std::list<T>::iterator jt = it; ++jt;
+      typename list<T>::iterator jt = it; ++jt;
       if (m.pointInPolygon(b.x(&(*it)), b.y(&(*it))))
       {
         for ( ; jt != ie; ++jt)
@@ -677,7 +706,7 @@ void SmartQuadtree<T>::iterate(const PolygonMask& m, void (*apply)(T&, T&))
   }
 
 }
-
+/*
 template<typename T>
 void SmartQuadtree<T>::iteratebyn(void (*apply)(T&, T&),
                                   void (*applybyn)(T&, T&),
@@ -692,7 +721,7 @@ void SmartQuadtree<T>::iteratebyn(void (*apply)(T&, T&),
   }
 
   std::vector<T*> neighbours;
-  typename std::list<T>::const_iterator it = points.begin(), ie = points.end();
+  typename list<T>::const_iterator it = points.begin(), ie = points.end();
 
   SmartQuadtree* nb;
   for (size_t i = 0; i < 4; ++i)
@@ -709,10 +738,10 @@ void SmartQuadtree<T>::iteratebyn(void (*apply)(T&, T&),
       neighbours.insert(neighbours.end(),it,ie);
     }
 
-  for (std::list<void*>::iterator itL = points.begin();
+  for (list<void*>::iterator itL = points.begin();
        itL != points.end(); itL++)
   {
-    std::list<void*>::iterator jtL = itL;
+    list<void*>::iterator jtL = itL;
     jtL++;
     for ( ; jtL != points.end(); ++jtL)
       apply(*itL, *jtL);
@@ -723,7 +752,7 @@ void SmartQuadtree<T>::iteratebyn(void (*apply)(T&, T&),
       apply(*itL, neighbours[j]);
   }
 }
-
+*/
 
 template<typename T>
 unsigned long SmartQuadtree<T>::getDataSize() const
@@ -765,3 +794,16 @@ unsigned char SmartQuadtree<T>::getDepth() const
   return 0;
 }
 
+template<typename T>
+typename SmartQuadtree<T>::const_iterator MaskedQuadtree<T>::begin() const
+{
+  return typename SmartQuadtree<T>::const_iterator(
+      quadtree.leaves.begin(), quadtree.leaves.end(), polygonmask);
+}
+
+template<typename T>
+typename SmartQuadtree<T>::const_iterator MaskedQuadtree<T>::end() const
+{
+  return typename SmartQuadtree<T>::const_iterator(
+      quadtree.leaves.end(), quadtree.leaves.end(), polygonmask);
+}

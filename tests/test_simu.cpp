@@ -116,12 +116,6 @@ void printLines(Point& p, Point& q)
   }
 }
 
-bool movePoints(Point& p) {
-  p.iterate();
-  // may modify the quadtree
-  return true;
-}
-
 void conflict(Point& p1, Point& p2)
 {
   ++checkCount;
@@ -132,53 +126,6 @@ void conflict(Point& p1, Point& p2)
     p1.neighbours.push_back(&p2);
   }
 }
-
-bool greenify(Point& p) {
-  p.green = true;
-  return false;
-}
-
-#ifdef __INTEL_COMPILER
-#include <fvec.h>
-void conflictby4(void* pv1, void** ppv2)
-{
-  assert(ppv2 != NULL);
-  checkCount += 1;
-  Point *p1   = (Point*) pv1;
-  Point** pp2 = (Point**)ppv2;
-  F32vec4 p1x(p1->x);
-  F32vec4 p1y(p1->y);
-  F32vec4 p2x(pp2[3]->x, pp2[2]->x, pp2[1]->x, pp2[0]->x);
-  F32vec4 p2y(pp2[3]->y, pp2[2]->y, pp2[1]->y, pp2[0]->y);
-  F32vec4 dx = (p1x-p2x);
-  F32vec4 dy = (p1y-p2y);
-  F32vec4 dist = dx*dx + dy*dy;
-  if (dist[0] < 16.)
-  {
-    p1->draw = true;
-    pp2[0]->draw = true;
-    p1->neighbours.push_back(pp2[0]);
-  }
-  if (dist[1] < 16.)
-  {
-    p1->draw = true;
-    pp2[1]->draw = true;
-    p1->neighbours.push_back(pp2[1]);
-  }
-  if (dist[2] < 16.)
-  {
-    p1->draw = true;
-    pp2[2]->draw = true;
-    p1->neighbours.push_back(pp2[2]);
-  }
-  if (dist[3] < 16.)
-  {
-    p1->draw = true;
-    pp2[3]->draw = true;
-    p1->neighbours.push_back(pp2[3]);
-  }
-}
-#endif
 
 void onDisplay(void)
 {
@@ -201,7 +148,7 @@ void onDisplay(void)
 
   glPointSize(4.f);
   glLineWidth(1.f);
-  SmartQuadtree<Point>::const_iterator it = q->begin();// itEnd = q->end();
+  SmartQuadtree<Point>::const_iterator it = q->begin();
   for ( ; it != q->end(); ++it)
   {
     //   q->iterate(printQuadtree);
@@ -322,7 +269,10 @@ void onKeyboard(unsigned char key, int x, int y)
       SmartQuadtree<Point>::const_iterator it = q->begin();
       for ( ; it != q->end(); ++it)
         it->green = false;
-      q->iterate(*mask, greenify);
+
+      it = q->masked(mask).begin();
+      for ( ; it != q->end(); ++it)
+        it->green = true;
     }
     break;
   case 'q':
@@ -359,13 +309,8 @@ void onIdle(void) {
   SmartQuadtree<Point>::iterator it = q->begin();
   for ( ; it != q->end(); ++it)
     it->iterate();
-//   q->iterate(movePoints);
   checkCount = 0;
-#ifdef __INTEL_COMPILER
-//   q->iteratebyn(conflict, conflictby4, 4);
-#else
   q->iterate(conflict);
-#endif
   calculateFPS();
   glutPostRedisplay();
 }
@@ -410,7 +355,9 @@ int main(int argc, char* argv[])
 
   mask = new PolygonMask(polyX, polyY, 5);
 
-  q->iterate(*mask, greenify);
+  SmartQuadtree<Point>::const_iterator it = q->masked(mask).begin();
+  for ( ; it != q->end(); ++it)
+    (*it).green = true;
 
   glutMainLoop();
   return EXIT_SUCCESS;
