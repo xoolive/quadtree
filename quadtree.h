@@ -21,6 +21,7 @@
 #include "neighbour.h"
 
 template<class T> class SmartQuadtree;
+template<class T> class MaskedQuadtree;
 
 class Boundary;
 
@@ -85,7 +86,7 @@ class Boundary
   }
 
   //! Return the number of points covered by the polygon mask m
-  int coveredByPolygon(const PolygonMask& m);
+  int coveredByPolygon(const PolygonMask& m) const;
 
 public:
 
@@ -93,6 +94,10 @@ public:
   Boundary(float cx, float cy, float dx, float dy) :
     center_x(cx), center_y(cy), dim_x(dx), dim_y(dy),
     x(NULL), y(NULL), limitfct(NULL) {};
+
+  Boundary(const Boundary& b) :
+    center_x(b.center_x), center_y(b.center_y), dim_x(b.dim_x), dim_y(b.dim_y),
+    x(b.x), y(b.y), limitfct(b.limitfct) {};
 
   //! Is this point included in the box?
   bool contains(float x, float y);
@@ -157,6 +162,10 @@ public:
 
 class Test_SmartQuadtree;
 
+// Necessary on some compilers in order to be befriended
+template<typename T>
+std::ostream& operator<< (std::ostream&, const SmartQuadtree<T>&);
+
 template<typename T>
 class SmartQuadtree
 {
@@ -185,9 +194,6 @@ class SmartQuadtree
 
   // Data attached to the quadrant
   std::list<T> points;
-
-  // Just to help not iterating twice
-//   std::list<T*> already;
 
   // We keep a map of who is where
   std::unordered_map<T*, SmartQuadtree*> where;
@@ -238,12 +244,16 @@ public:
   //! Destructor
   ~SmartQuadtree<T>();
 
+  //! Iterator
   SmartQuadtree<T>::iterator begin();
 
+  //! Iterator
   SmartQuadtree<T>::iterator end();
 
+  //! Iterator (const version)
   SmartQuadtree<T>::const_iterator begin() const;
 
+  //! Iterator (const version)
   SmartQuadtree<T>::const_iterator end() const;
 
   //! Find same level neighbour in determined direction
@@ -254,7 +264,7 @@ public:
   bool insert(T);
 
   //! Update a data in current subtree, returns true if changed cell
-  bool updateData(T& p);
+//   bool updateData(T& p);
 
   //! Removes a data in current subtree
   void removeData(T& p);
@@ -300,12 +310,9 @@ public:
   //! Get the depth of the quadtree
   unsigned char getDepth() const;
 
-  //! Iterate something for all items
-  //! Adjusts the quadtree if the items move
-  void iterate(const PolygonMask& m, bool (*apply)(T&));
-
-  //! Iterate something for all items
-//   void iterate(bool (*apply)(T&));
+  //! Mask the quadtree
+  MaskedQuadtree<T> masked(PolygonMask* m) const
+  { return MaskedQuadtree<T>(*this, m); }
 
   //! Iterate something for all pairs of neighbouring items
   void iterate(const PolygonMask& m, void (*apply)(T&, T&));
@@ -313,16 +320,12 @@ public:
   //! Iterate something for all pairs of neighbouring items
   void iterate(void (*apply)(T&, T&));
 
-  //! Iterate something for all pairs of neighbouring items
-  //! Vectorised version
-  void iteratebyn(void (*apply)(T&, T&),
-                  void (*applybyn)(T&, T&), unsigned char n);
-
   friend std::ostream& operator<<<> (std::ostream&, const SmartQuadtree<T>&);
-  friend class Test_SmartQuadtree;
+  friend class MaskedQuadtree<T>;
   friend struct const_iterator;
   friend struct iterator;
 
+  friend class Test_SmartQuadtree;
 
 };
 
@@ -333,7 +336,8 @@ struct SmartQuadtree<T>::const_iterator
 
   const_iterator(
       const typename std::list<SmartQuadtree<T>*>::const_iterator& begin,
-      const typename std::list<SmartQuadtree<T>*>::const_iterator& end);
+      const typename std::list<SmartQuadtree<T>*>::const_iterator& end,
+      PolygonMask* mask = NULL);
 
   const_iterator(const typename SmartQuadtree<T>::iterator& it);
 
@@ -345,9 +349,15 @@ struct SmartQuadtree<T>::const_iterator
 
 private:
 
-  void advanceToNextLeaf();
   typename std::list<SmartQuadtree<T>*>::const_iterator leafIterator, leafEnd;
   typename std::list<T>::const_iterator it, itEnd;
+
+  // current leaf: number of covered summits
+  unsigned char aux;
+  // NULL if no mask
+  PolygonMask* polygonmask;
+
+  void advanceToNextLeaf();
 
 };
 
@@ -359,8 +369,7 @@ struct SmartQuadtree<T>::iterator
 
   iterator(
       const typename std::list<SmartQuadtree<T>*>::iterator& begin,
-      const typename std::list<SmartQuadtree<T>*>::iterator& end,
-      SmartQuadtree<T>* ancestor);
+      const typename std::list<SmartQuadtree<T>*>::iterator& end);
 
   iterator operator++();
   typename SmartQuadtree<T>::iterator::reference operator*();
@@ -373,14 +382,33 @@ private:
   void advanceToNextLeaf();
   typename std::list<SmartQuadtree<T>*>::iterator leafIterator, leafEnd;
   typename std::list<T>::iterator it, itEnd;
-  SmartQuadtree<T>* ancestor;
   std::list<T*> already;
 
-  friend class SmartQuadtree<T>::const_iterator;
+  friend struct SmartQuadtree<T>::const_iterator;
+};
+
+template<typename T>
+class MaskedQuadtree
+{
+public:
+
+  MaskedQuadtree(const SmartQuadtree<T>& q, PolygonMask* m):
+    quadtree(q), polygonmask(m) { }
+
+// typename SmartQuadtree<T>::iterator begin();
+// typename SmartQuadtree<T>::iterator end();
+  typename SmartQuadtree<T>::const_iterator begin() const;
+  typename SmartQuadtree<T>::const_iterator end() const;
+
+private:
+  const SmartQuadtree<T>& quadtree;
+  PolygonMask* polygonmask;
+
 };
 
 #include "quadtree.hpp"
 
 typedef SmartQuadtree<void*> OpaqueSmartQuadtree;
+typedef MaskedQuadtree<void*> OpaqueMaskedQuadtree;
 
 #endif // QUADTREE_H
