@@ -59,6 +59,19 @@ public:
 
 };
 
+template<typename T>
+struct BoundaryXY
+{
+  static double getX(const T& p) { return p.x; }
+  static double getY(const T& p) { return p.y; }
+};
+
+template<typename T>
+struct BoundaryLimit
+{
+  static bool limitation(const T& box) { return false; }
+};
+
 class Boundary
 {
   //! Coordinates for the center of the box
@@ -67,22 +80,8 @@ class Boundary
   //! Dimension from the center to the border of the box
   float dim_x, dim_y;
 
-  //! Find the coordinates of the data
-  float (*x)(const void*), (*y)(const void*);
-
-  //! Give some limitation to the size of the cells. This function shall return
-  //! true if the the Boundary box must not be subdivided.
-  bool (*limitfct)(Boundary*);
-
   //! Store the result of limitation in order to avoid recomputation
   bool limit;
-
-  //! Limitation function; returns false if unset
-  bool limitation() {
-    if (limitfct == NULL) return false;
-    bool limit = limitfct(this);
-    return limit;
-  }
 
   //! Return the number of points covered by the polygon mask m
   int coveredByPolygon(const PolygonMask& m) const;
@@ -91,18 +90,19 @@ public:
 
   //! Default constructor
   Boundary(float cx, float cy, float dx, float dy) :
-    center_x(cx), center_y(cy), dim_x(dx), dim_y(dy),
-    x(NULL), y(NULL), limitfct(NULL) {};
+    center_x(cx), center_y(cy), dim_x(dx), dim_y(dy) {};
 
   Boundary(const Boundary& b) :
-    center_x(b.center_x), center_y(b.center_y), dim_x(b.dim_x), dim_y(b.dim_y),
-    x(b.x), y(b.y), limitfct(b.limitfct) {};
+    center_x(b.center_x), center_y(b.center_y),
+    dim_x(b.dim_x), dim_y(b.dim_y) {};
 
   //! Is this point included in the box?
   bool contains(float x, float y);
 
   //! Is this data included in the box?
-  inline bool contains(void* pt) { return contains(x(pt), y(pt)); }
+  template<typename T>
+  inline bool contains(const T& pt)
+  { return contains(BoundaryXY<T>::getX(pt), BoundaryXY<T>::getY(pt)); }
 
   //! Returns the x-coordinate of the center of the boundary box
   inline float getX() const { return center_x; }
@@ -283,18 +283,6 @@ public:
   {
     assert (i<4);
     return children[i];
-  }
-
-  //! Sets the getters in the Boundary
-  inline void setXYFcts(float (*x)(const void*), float (*y)(const void*))
-  { b.x = x; b.y = y; }
-
-  //! Sets the limitation function; if NULL, behaves as no restriction
-  inline void setLimitation(bool (*limit)(Boundary*))
-  {
-    assert(limit != NULL);
-    b.limitfct = limit;
-    b.limit = b.limitation();
   }
 
   //! Get the location

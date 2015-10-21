@@ -53,8 +53,6 @@ SmartQuadtree<T>::SmartQuadtree(const SmartQuadtree<T>& e,
 : b(e.b), capacity(e.capacity)
 {
 
-  assert(b.limitfct != NULL);
-
   for (int i = 0; i<4; ++i) children[i] = NULL;
 
   location = (e.location << 2) + subdivision;
@@ -86,7 +84,7 @@ SmartQuadtree<T>::SmartQuadtree(const SmartQuadtree<T>& e,
   b.dim_x  = e.b.dim_x / 2.;
   b.dim_y  = e.b.dim_y / 2.;
 
-  b.limit = b.limitation();
+  b.limit = BoundaryLimit<Boundary>::limitation(b);
 
 }
 
@@ -117,7 +115,7 @@ typename SmartQuadtree<T>::iterator SmartQuadtree<T>::end()
 template<typename T>
 bool SmartQuadtree<T>::insert(T pt)
 {
-  if (!b.contains(&pt)) return false;
+  if (!b.contains(pt)) return false;
 
   // It is OK to go over capacity if a test "limitation" on b is verified
   if (b.limit || ((NULL == children[0]) && (points.size() < capacity)))
@@ -417,8 +415,8 @@ SmartQuadtree<T>::const_iterator::operator++()
     // If a polygonmask is set, we want to ensure than (*it) is inside
     assert(polygonmask != NULL);
     while ((leafIterator != leafEnd) &&
-           !polygonmask->pointInPolygon((*leafIterator)->b.x(&(*it)),
-                                        (*leafIterator)->b.y(&(*it)))
+           !polygonmask->pointInPolygon(BoundaryXY<T>::getX(*it),
+                                        BoundaryXY<T>::getY(*it))
           )
     {
       ++it;
@@ -477,8 +475,8 @@ SmartQuadtree<T>::iterator::iterator(
     assert(leafIterator != leafEnd ? it != itEnd : true);
     if (aux < 4)
       // This only happens if polygonmask is set
-      while (!polygonmask->pointInPolygon((*leafIterator)->b.x(&(*it)),
-                                          (*leafIterator)->b.y(&(*it))))
+      while (!polygonmask->pointInPolygon(BoundaryXY<T>::getX(*it),
+                                          BoundaryXY<T>::getY(*it)))
       {
         ++it;
         advanceToNextLeaf();
@@ -513,7 +511,7 @@ SmartQuadtree<T>::iterator::operator++()
 {
   if (leafIterator == leafEnd) return *this;
   assert (it != itEnd);
-  if (!(*leafIterator)->b.contains(&(*it)))
+  if (!(*leafIterator)->b.contains(*it))
   {
     // Computing the proper neighbour is probably slower than finding it
     // from the ancestor node...
@@ -543,8 +541,8 @@ SmartQuadtree<T>::iterator::operator++()
     // If a polygonmask is set, we want to ensure than (*it) is inside
     assert(polygonmask != NULL);
     while ((leafIterator != leafEnd) &&
-           (!polygonmask->pointInPolygon((*leafIterator)->b.x(&(*it)),
-                                         (*leafIterator)->b.y(&(*it))) ||
+           (!polygonmask->pointInPolygon(BoundaryXY<T>::getX(*it),
+                                         BoundaryXY<T>::getY(*it)) ||
             already.end() != std::find(already.begin(), already.end(), &(*it)))
           )
     {
@@ -691,7 +689,8 @@ void SmartQuadtree<T>::iterate(const PolygonMask& m, void (*apply)(T&, T&))
           neighbours.push_back(&(*it));
       else
         for (; it!=itend; ++it)
-          if (m.pointInPolygon(nb->b.x(&(*it)), nb->b.y(&(*it))))
+          if (m.pointInPolygon(BoundaryXY<T>::getX(*it),
+                               BoundaryXY<T>::getY(*it)))
             neighbours.push_back(&(*it));
     }
   for (size_t i = 4; i < 8; ++i)
@@ -707,7 +706,8 @@ void SmartQuadtree<T>::iterate(const PolygonMask& m, void (*apply)(T&, T&))
             neighbours.push_back(&(*it));
       else
         for (; it!=itend; ++it)
-          if (m.pointInPolygon(nb->b.x(&(*it)), nb->b.y(&(*it))))
+          if (m.pointInPolygon(BoundaryXY<T>::getX(*it),
+                               BoundaryXY<T>::getY(*it)))
             neighbours.push_back(&(*it));
     }
 
@@ -732,10 +732,12 @@ void SmartQuadtree<T>::iterate(const PolygonMask& m, void (*apply)(T&, T&))
     for ( ; it != ie ; ++it)
     {
       typename list<T>::iterator jt = it; ++jt;
-      if (m.pointInPolygon(b.x(&(*it)), b.y(&(*it))))
+      if (m.pointInPolygon(BoundaryXY<T>::getX(*it),
+                           BoundaryXY<T>::getY(*it)))
       {
         for ( ; jt != ie; ++jt)
-          if (m.pointInPolygon(b.x(&(*it)), b.y(&(*it))))
+          if (m.pointInPolygon(BoundaryXY<T>::getX(*it),
+                               BoundaryXY<T>::getY(*it)))
             apply(*it, *jt);
 
       for (int j = 0; j < neighbours.size(); ++j)
