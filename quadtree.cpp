@@ -1,5 +1,7 @@
 #include "quadtree.h"
 
+#include <cfloat> // FLT_EPSILON
+
 void PolygonMask::precompute()
 {
   // see http://alienryderflex.com/polygon/

@@ -1,15 +1,11 @@
 /*
- * Implementation for a smart version of quadtrees specialised for tracking
- * moving objects. When iterating over elements in the quadtree, a simple flag
- * (boolean) indicates whether the element might have moved to a neighbouring
- * subdivision.
+ * Interface for a smart version of quadtrees specialised for tracking moving
+ * objects. Iterators and their const counterparts let you process objects and
+ * ajust the quadtree structure when points are moved.
  *
  * Xavier Olive, 28 nov. 2014
  */
 
-#include <cfloat> // FLT_EPSILON
-
-#include <stack>
 #include <vector>
 #include <algorithm>
 
@@ -381,12 +377,12 @@ template<typename T>
 SmartQuadtree<T>::const_iterator::const_iterator(
     const typename SmartQuadtree<T>::iterator& a)
 {
-  polygonmask = NULL;
-  aux = 4;
   leafIterator = a.leafIterator;
   leafEnd = a.leafEnd;
   it = a.it;
   itEnd = a.itEnd;
+  polygonmask = a.polygonmask;
+  aux = a.aux;
 }
 
 template<typename T>
@@ -460,15 +456,33 @@ SmartQuadtree<T>::const_iterator::operator!=(
 template<typename T>
 SmartQuadtree<T>::iterator::iterator(
     const typename list<SmartQuadtree<T>*>::iterator& begin,
-    const typename list<SmartQuadtree<T>*>::iterator& end)
+    const typename list<SmartQuadtree<T>*>::iterator& end,
+    PolygonMask* mask) : polygonmask(mask)
 {
   leafIterator = begin;
   leafEnd = end;
+  aux = 4; // Default case: polygonmask is not set
   if (begin != end)
   {
     it = (*leafIterator)->points.begin();
     itEnd = (*leafIterator)->points.end();
+    if (polygonmask != NULL)
+    {
+      // In case the first leaf is out of the polygon
+      PolygonMask clip = polygonmask->clip((*leafIterator)->b);
+      aux = (*leafIterator)->b.coveredByPolygon(clip);
+    }
+    // In case it = itEnd
     advanceToNextLeaf();
+    assert(leafIterator != leafEnd ? it != itEnd : true);
+    if (aux < 4)
+      // This only happens if polygonmask is set
+      while (!polygonmask->pointInPolygon((*leafIterator)->b.x(&(*it)),
+                                          (*leafIterator)->b.y(&(*it))))
+      {
+        ++it;
+        advanceToNextLeaf();
+      }
     assert(leafIterator != leafEnd ? it != itEnd : true);
   }
 }
@@ -476,16 +490,18 @@ SmartQuadtree<T>::iterator::iterator(
 template<typename T>
 void SmartQuadtree<T>::iterator::advanceToNextLeaf()
 {
-  if (it == itEnd || already.end() !=
-      std::find(already.begin(), already.end(), &(*it)))
+  if (it == itEnd)
     do
     {
       ++leafIterator;
       if (leafIterator == leafEnd) return;
+      if (polygonmask != NULL)
+      {
+        PolygonMask clip = polygonmask->clip((*leafIterator)->b);
+        if (clip.getSize() < 3) continue;
+        aux = (*leafIterator)->b.coveredByPolygon(clip);
+      }
       it = (*leafIterator)->points.begin();
-      while (already.end() !=
-             std::find(already.begin(), already.end(), &(*it)))
-        ++it;
       itEnd = (*leafIterator)->points.end();
     } while (it == itEnd);
 }
@@ -512,8 +528,31 @@ SmartQuadtree<T>::iterator::operator++()
   }
   else
     ++it;
-  if (it != itEnd) return *this;
+
   advanceToNextLeaf();
+
+  // Don't parse elements that are already parsed
+  if (aux == 4)
+  while (already.end() != std::find(already.begin(), already.end(), &(*it)))
+  {
+    ++it;
+    advanceToNextLeaf();
+  }
+  if (aux < 4)
+  {
+    // If a polygonmask is set, we want to ensure than (*it) is inside
+    assert(polygonmask != NULL);
+    while ((leafIterator != leafEnd) &&
+           (!polygonmask->pointInPolygon((*leafIterator)->b.x(&(*it)),
+                                         (*leafIterator)->b.y(&(*it))) ||
+            already.end() != std::find(already.begin(), already.end(), &(*it)))
+          )
+    {
+      ++it;
+      advanceToNextLeaf();
+    }
+  }
+
   return *this;
 }
 
@@ -805,5 +844,19 @@ template<typename T>
 typename SmartQuadtree<T>::const_iterator MaskedQuadtree<T>::end() const
 {
   return typename SmartQuadtree<T>::const_iterator(
+      quadtree.leaves.end(), quadtree.leaves.end(), polygonmask);
+}
+
+template<typename T>
+typename SmartQuadtree<T>::iterator MaskedQuadtree<T>::begin()
+{
+  return typename SmartQuadtree<T>::iterator(
+      quadtree.leaves.begin(), quadtree.leaves.end(), polygonmask);
+}
+
+template<typename T>
+typename SmartQuadtree<T>::iterator MaskedQuadtree<T>::end()
+{
+  return typename SmartQuadtree<T>::iterator(
       quadtree.leaves.end(), quadtree.leaves.end(), polygonmask);
 }
