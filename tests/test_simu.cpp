@@ -38,7 +38,7 @@ struct Point {
 
   float x, y, vx, vy;
   mutable bool draw, green;
-  std::list<Point*> neighbours;
+  mutable std::list<const Point*> neighbours;
 
   Point(float x, float y) : x(x), y(y), draw(false), green(false)
   {
@@ -113,31 +113,6 @@ std::ostream& operator<<(std::ostream& os, const SmartQuadtree<Point>& e)
   return os;
 }
 
-void printLines(Point& p, Point& q)
-{
-  if (p.distance2(q) < 16.)
-  {
-    glColor3ub(86, 185, 95);
-    glBegin(GL_LINES);
-    {
-      glVertex3f(p.x, p.y, 1.01);
-      glVertex3f(q.x, q.y, 1.01);
-    }
-    glEnd();
-  }
-}
-
-void conflict(Point& p1, Point& p2)
-{
-  ++checkCount;
-  if (p1.distance2(p2) < 16.)
-  {
-    p1.draw = true;
-    p2.draw = true;
-    p1.neighbours.push_back(&p2);
-  }
-}
-
 void onDisplay(void)
 {
   glClearColor(1., 1., 1., 0);
@@ -177,7 +152,7 @@ void onDisplay(void)
     }
     glEnd();
 
-    std::list<Point*>::const_iterator pit = it->neighbours.begin(),
+    std::list<const Point*>::const_iterator pit = it->neighbours.begin(),
       pend = it->neighbours.end();
     for ( ; pit != pend; ++pit)
     {
@@ -189,10 +164,26 @@ void onDisplay(void)
       }
       glEnd();
     }
-
   }
 
-  q->iterate(*mask, printLines);
+  SmartQuadtree<Point>::const_iterator j = q->masked(mask).begin();
+  for ( ; j != q->end(); ++j)
+  {
+    std::vector<const Point*>::const_iterator k = j.forward_begin();
+    for ( ; k != j.forward_end(); ++k)
+    {
+      if (j->distance2(**k) < 16.)
+      {
+        glColor3ub(86, 185, 95);
+        glBegin(GL_LINES);
+        {
+          glVertex3f(j->x, j->y, 1.01);
+          glVertex3f((*k)->x, (*k)->y, 1.01);
+        }
+        glEnd();
+      }
+    }
+  }
 
   // The lines for the first subdivision of the quadtree
   glColor3ub(200, 200, 200);
@@ -320,7 +311,23 @@ void onIdle(void) {
   for ( ; it != q->end(); ++it)
     it->iterate();
   checkCount = 0;
-  q->iterate(conflict);
+
+  SmartQuadtree<Point>::const_iterator j = q->begin();
+  for ( ; j != q->end(); ++j)
+  {
+    std::vector<const Point*>::const_iterator k = j.forward_begin();
+    for ( ; k != j.forward_end(); ++k)
+    {
+      ++checkCount;
+      if (j->distance2(**k) < 16.)
+      {
+        j->draw = true;
+        (*k)->draw = true;
+        j->neighbours.push_back(*k);
+      }
+    }
+  }
+
   calculateFPS();
   glutPostRedisplay();
 }

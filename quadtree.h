@@ -90,11 +90,11 @@ public:
 
   //! Default constructor
   Boundary(float cx, float cy, float dx, float dy) :
-    center_x(cx), center_y(cy), dim_x(dx), dim_y(dy) {};
+    center_x(cx), center_y(cy), dim_x(dx), dim_y(dy), limit(false) {};
 
   Boundary(const Boundary& b) :
     center_x(b.center_x), center_y(b.center_y),
-    dim_x(b.dim_x), dim_y(b.dim_y) {};
+    dim_x(b.dim_x), dim_y(b.dim_y), limit(false) {};
 
   //! Is this point included in the box?
   bool contains(float x, float y);
@@ -175,7 +175,7 @@ class SmartQuadtree
   std::size_t location;
 
   // Current level of the quadrant
-  int level;
+  std::size_t level;
 
   // Level differences with the neighbours
   // 0: adjacent quadrant is of same level
@@ -301,13 +301,8 @@ public:
   MaskedQuadtree<T> masked(PolygonMask* m)
   { return MaskedQuadtree<T>(*this, m); }
 
-  //! Iterate something for all pairs of neighbouring items
-  void iterate(const PolygonMask& m, void (*apply)(T&, T&));
-
-  //! Iterate something for all pairs of neighbouring items
-  void iterate(void (*apply)(T&, T&));
-
   friend std::ostream& operator<<<> (std::ostream&, const SmartQuadtree<T>&);
+
   friend class MaskedQuadtree<T>;
   friend struct const_iterator;
   friend struct iterator;
@@ -334,15 +329,22 @@ struct SmartQuadtree<T>::const_iterator
   bool operator==(const const_iterator&) const;
   bool operator!=(const const_iterator&) const;
 
+  typename std::vector<const T*>::const_iterator forward_begin();
+  typename std::vector<const T*>::const_iterator forward_end();
+
 private:
 
   typename std::list<SmartQuadtree<T>*>::const_iterator leafIterator, leafEnd;
   typename std::list<T>::const_iterator it, itEnd;
+  std::vector<const T*> forward_cells_neighbours;
+  typename std::vector<const T*>::const_iterator forward_cells_begin;
 
   // Current leaf: number of covered summits
   unsigned char aux;
   // NULL if no mask
   PolygonMask* polygonmask;
+  // forward_cells_neighbours computed for current cell
+  bool neighbours_computed;
 
   void advanceToNextLeaf();
 

@@ -23,7 +23,7 @@ if (WIN32)
   endif (MINGW)
 else (WIN32)
   #set (CMAKE_CXX_FLAGS "-std=c++11")
-  set (CMAKE_CXX_FLAGS "-std=c++0x")
+  set (CMAKE_CXX_FLAGS "-std=c++0x -O2 -Wall -pedantic")
 endif(WIN32)
 
 add_library (smartquadtree STATIC
