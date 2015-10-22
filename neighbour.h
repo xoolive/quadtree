@@ -18,7 +18,7 @@ enum Direction {
 class Neighbour
 {
   //! Max level generated for _x and _y
-  static int maxlevel;
+  static unsigned int maxlevel;
 
   //! Basic movement backwards in x
   static unsigned int _x;
@@ -32,7 +32,7 @@ class Neighbour
   //! Generates codes for all direction movements
   static void generate(unsigned int level)
   {
-    for (int i = maxlevel; i<=level; ++i)
+    for (unsigned int i = maxlevel; i<=level; ++i)
     {
       _x = (_x << 2) + 1;
       _y = (_y << 2) + 2;
