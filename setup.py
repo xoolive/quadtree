@@ -10,7 +10,7 @@ extensions = [
 ]
 
 setup(name="smartquadtree",
-      version="0.2",
+      version="1.0",
       author="Xavier Olive",
       author_email="xavier@xoolive.org",
       description="Implementation of quadtree for moving objects",
