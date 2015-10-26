@@ -25,3 +25,7 @@ setup(name="smartquadtree",
       url="https://github.com/xoolive/quadtree",
       ext_modules=cythonize(extensions),
       )
+
+# Producing long description
+# ipython nbconvert tutorial.ipynb --to rst
+# Then manually edit paths to images to point to github
