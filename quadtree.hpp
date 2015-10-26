@@ -271,20 +271,6 @@ void SmartQuadtree<T>::updateDelta(unsigned char dir)
       children[1]->delta[dir] = 1;
 }
 
-/*template<typename T>
-bool SmartQuadtree<T>::updateData(T& p)
-{
-  SmartQuadtree* e = ancestor->where[&p];
-  assert (e != NULL);
-  assert (e->points.end() != std::find(e->points.begin(), e->points.end(), p));
-
-  if (e->contains(p)) return false;
-  e->points.remove(p);
-  ancestor->insert(p);
-  return true;
-}
-*/
-
 template<typename T>
 void SmartQuadtree<T>::removeData(T& p)
 {
@@ -320,8 +306,8 @@ SmartQuadtree<T>::const_iterator::const_iterator(
     assert(leafIterator != leafEnd ? it != itEnd : true);
     if (aux < 4)
       // This only happens if polygonmask is set
-      while (!polygonmask->pointInPolygon((*leafIterator)->b.x(&(*it)),
-                                          (*leafIterator)->b.y(&(*it))))
+      while (!polygonmask->pointInPolygon(BoundaryXY<T>::getX(*it),
+                                          BoundaryXY<T>::getY(*it)))
       {
         ++it;
         advanceToNextLeaf();
@@ -397,7 +383,12 @@ SmartQuadtree<T>::const_iterator::forward_begin()
   {
     for (typename std::list<T>::const_iterator i = it ;
          i != itEnd; ++i)
-      forward_cells_neighbours.push_back(&(*i));
+        if (polygonmask == NULL)
+            forward_cells_neighbours.push_back(&(*i));
+        else
+            if (polygonmask->pointInPolygon(BoundaryXY<T>::getX(*i),
+                                            BoundaryXY<T>::getY(*i)))
+                forward_cells_neighbours.push_back(&(*i));
 
     SmartQuadtree<T>* nb;
     for (size_t i = 0; i < 4; ++i)
@@ -407,8 +398,15 @@ SmartQuadtree<T>::const_iterator::forward_begin()
           if (polygonmask->clip(nb->b).getSize() < 3)
             continue;
         typename list<T>::const_iterator j = nb->getPoints().begin();
-        for (; j != nb->getPoints().end(); ++j)
-          forward_cells_neighbours.push_back(&(*j));
+        if (polygonmask == NULL ||
+            nb->b.coveredByPolygon(polygonmask->clip(nb->b)) == 4)
+          for (; j != nb->getPoints().end(); ++j)
+            forward_cells_neighbours.push_back(&(*j));
+        else
+          for (; j != nb->getPoints().end(); ++j)
+            if (polygonmask->pointInPolygon(BoundaryXY<T>::getX(*j),
+                                            BoundaryXY<T>::getY(*j)))
+              forward_cells_neighbours.push_back(&(*j));
       }
     for (size_t i = 4; i < 8; ++i)
       if ((*leafIterator)->delta[i] < 0) {
@@ -418,7 +416,7 @@ SmartQuadtree<T>::const_iterator::forward_begin()
             continue;
         typename list<T>::const_iterator j = nb->getPoints().begin();
         if (polygonmask == NULL ||
-            nb->b.coveredByPolygon(polygonmask->clip((*leafIterator)->b)) == 4)
+            nb->b.coveredByPolygon(polygonmask->clip(nb->b)) == 4)
           for (; j != nb->getPoints().end(); ++j)
             forward_cells_neighbours.push_back(&(*j));
         else
@@ -430,7 +428,7 @@ SmartQuadtree<T>::const_iterator::forward_begin()
     forward_cells_begin = forward_cells_neighbours.begin();
     neighbours_computed = true;
   }
-  while (*forward_cells_begin != &(*it))
+  while ( *forward_cells_begin != &(*it) )
     ++forward_cells_begin;
   // assert (*forward_cells_begin == &(*it));
   // One more for not getting yourself

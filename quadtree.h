@@ -262,9 +262,6 @@ public:
   //! Returns true if the data has been inserted
   bool insert(T);
 
-  //! Update a data in current subtree, returns true if changed cell
-//   bool updateData(T& p);
-
   //! Removes a data in current subtree
   void removeData(T& p);
 
@@ -316,6 +313,9 @@ struct SmartQuadtree<T>::const_iterator
 : std::iterator < std::input_iterator_tag, const T >
 {
 
+  // Not much sense, but for cython
+  const_iterator() {}
+
   const_iterator(
       const typename std::list<SmartQuadtree<T>*>::const_iterator& begin,
       const typename std::list<SmartQuadtree<T>*>::const_iterator& end,
@@ -355,6 +355,9 @@ template<class T>
 struct SmartQuadtree<T>::iterator
 : std::iterator < std::input_iterator_tag, T >
 {
+
+  // Not much sense, but for cython
+  iterator() {}
 
   iterator(
       const typename std::list<SmartQuadtree<T>*>::iterator& begin,
@@ -405,8 +408,5 @@ private:
 };
 
 #include "quadtree.hpp"
-
-typedef SmartQuadtree<void*> OpaqueSmartQuadtree;
-typedef MaskedQuadtree<void*> OpaqueMaskedQuadtree;
 
 #endif // QUADTREE_H

@@ -17,90 +17,63 @@ The proposed implementation efficiently addresses this problem.
 from libcpp cimport bool as cppbool
 from libcpp.vector cimport vector
 from cpython.ref cimport Py_INCREF, Py_DECREF
+from cython.operator cimport dereference as deref, preincrement as inc
+
+
+cdef extern from *:
+    cdef cppclass cpp_vector "std::vector" [T]:
+        cppclass const_iterator:
+            T& operator*()
+            const_iterator operator++()
+            bint operator!=(const_iterator)
+        const_iterator begin()
+        const_iterator end()
 
 cdef extern from "quadtree.h":
-    cdef cppclass Boundary:
-        float norm_infty()
     cdef cppclass PolygonMask:
         PolygonMask(vector[float], vector[float], int)
-    cdef cppclass SmartQuadtree:
+    cdef cppclass SmartQuadtree[T]:
+        cppclass const_iterator:
+            const_iterator()
+            T operator*()
+            const_iterator operator++()
+            bint operator==(const_iterator)
+            bint operator!=(const_iterator)
+            cpp_vector[const T*].const_iterator forward_begin()
+            cpp_vector[const T*].const_iterator forward_end()
+        cppclass iterator:
+            iterator()
+            T operator*()
+            iterator operator++()
+            bint operator==(iterator)
+            bint operator!=(iterator)
         SmartQuadtree(float, float, float, float, unsigned int)
-        void setXYFcts(float (*x)(void*), float (*y)(void*))
-        void setLimitation(cppbool (*limit)(Boundary*))
-        cppbool insert(void*)
-        void iterate(cppbool (*fct)(void*))
-        void iterate(void (*fct)(void*, void*))
-        void iterate(PolygonMask, cppbool (*fct)(void*))
+        cppbool insert(T)
+        iterator begin()
+        iterator end()
+        const_iterator const_begin "begin" ()
+        const_iterator const_end "end" ()
 
-cdef object global_lbd, global_flag
-cdef float size_limit
-cdef object string
+cdef extern from "cython_additions.hpp":
+    double BoundaryXY_getX(long&)
+    double BoundaryXY_getY(long&)
+    double size_limit
+    SmartQuadtree[long].iterator masked_begin(SmartQuadtree[long], PolygonMask*)
+    SmartQuadtree[long].const_iterator masked_const_begin(SmartQuadtree[long], PolygonMask*)
 
-cdef float c_getx(void* p):
-    cdef object o = <object> (p)
+cdef double BoundaryXY_getX(long& p):
+    cdef object o = <object> (<void*> p)
+    if isinstance(o, tuple) or isinstance(o, list):
+        return <double> o[0]
     assert ("get_x" in dir(o))
-    return <float> o.get_x()
+    return <double> o.get_x()
 
-cdef float c_getidx0(void* p):
-    cdef object o = <object> (p)
-    assert (isinstance(o, tuple) or isinstance(o, list))
-    return <float> o[0]
-
-cdef float c_gety(void* p):
-    cdef object o = <object> (p)
+cdef double BoundaryXY_getY(long& p):
+    cdef object o = <object> (<void*> p)
+    if isinstance(o, tuple) or isinstance(o, list):
+        return <double> o[1]
     assert ("get_y" in dir(o))
-    return <float> o.get_y()
-
-cdef float c_getidx1(void* p):
-    cdef object o = <object> (p)
-    assert (isinstance(o, tuple) or isinstance(o, list))
-    return <float> o[1]
-
-
-class movable_elt(object):
-    """ Decorator for callbacks that modify x-y coordinates of elements. """
-
-    def __init__(self, f):
-        self.func = f
-
-    def __call__(self, *args, **kwargs):
-        return self.func(*args, **kwargs)
-
-    def __repr__(self):
-        return self.func.__doc__
-
-
-class static_elt(object):
-    """ Decorator for callbacks that do not modify x-y coordinates of elements. """
-
-    def __init__(self, f):
-        self.func = f
-
-    def __call__(self, *args, **kwargs):
-        return self.func(*args, **kwargs)
-
-    def __repr__(self):
-        return self.func.__doc__
-
-
-cdef cppbool apply_lambda(void* p):
-    global global_lbd, global_flag
-    global_lbd(<object> (p))
-    return (<bint> global_flag)
-
-cdef void apply_lambda_pair(void* p1, void* p2):
-    global global_lbd
-    global_lbd(<object> (p1), <object> (p2))
-    return
-
-cdef cppbool decref_all(void* p):
-    Py_DECREF(<object> p)
-    return <bint> False
-
-cdef cppbool limitation(Boundary* b):
-    global size_limit
-    cdef float sq_size = b.norm_infty()
-    return <bint> (sq_size < size_limit)
+    return <double> o.get_y()
 
 cdef class Quadtree(object):
     """ Main class for quadtrees
@@ -114,9 +87,7 @@ cdef class Quadtree(object):
     All methods attached to the Quadtree class are detailed below.
     """
     cdef PolygonMask* p
-    cdef SmartQuadtree* q
-    cdef object is_tuple_or_list
-    cdef long count
+    cdef SmartQuadtree[long]* q
 
     def __cinit__(self, x0=None, y0=None, dim_x=None, dim_y=None, depth=8):
         self.p = NULL
@@ -124,19 +95,18 @@ cdef class Quadtree(object):
         if any([p is None for p in [x0, y0, dim_x, dim_y]]):
             print self.__doc__
             raise SyntaxError
-        self.q = new SmartQuadtree(x0, y0, dim_x, dim_y, depth)
-        self.is_tuple_or_list = None
-        self.count = 0
+        self.q = new SmartQuadtree[long](x0, y0, dim_x, dim_y, depth)
 
     def __dealloc__(self):
         if self.q != NULL:
-            self.q.iterate(decref_all)
+            for x in self.elements():
+                Py_DECREF(<object> (<void*> x))
             del self.q
         if self.p != NULL:
             del self.p
 
     def __repr__(self):
-        global string
+        cdef long count
         size_total = self.size()
         size_mask = self.size(False)
         string = "<smartquadtree.Quadtree at 0x%x>\n" % (<long> self.q)
@@ -145,23 +115,19 @@ cdef class Quadtree(object):
             string += "Total number of elements inside mask: %ld\n"\
                 % size_mask
             if (size_mask > 0):
-                string += "First elements inside the mask:\n"
+                string += "First elements inside the mask:\n    "
         else:
             string += "No mask set\n"
             if (size_total > 0):
                 string += "First elements:\n    "
-        self.count = 0
-        @static_elt
-        def print_first(p):
-            global string
-            if (self.count > 3): return
-            if (self.count == 3):
+        count = 0
+        for i in self.elements():
+            if (count > 3): return
+            if (count == 3):
                 string += "...  "
-                self.count += 1
-                return
-            string += p.__repr__() + ", "
-            self.count += 1
-        self.iterate(print_first)
+                break
+            else: string += i.__repr__() + ",\n    "
+            count += 1
         if (size_mask > 0 or size_total > 0):
             string = string[:-2]
         return string
@@ -188,10 +154,10 @@ cdef class Quadtree(object):
             vec_y.push_back(y)
         self.p = new PolygonMask(vec_x, vec_y, len(coords))
 
-    def set_limitation(self, size):
+    def set_limitation(self, double size):
         """ Provides a criteria for stopping subdivisions.
 
-        (see also: iterate_pair)
+        (see also: neighbours())
 
         The iterate_pair function provides a way to iterate over couples of
         items in a neighbourhood defined by the current cell and
@@ -205,7 +171,6 @@ cdef class Quadtree(object):
         """
         global size_limit
         size_limit = size
-        self.q.setLimitation(limitation)
 
     def insert(self, elt):
         """ Inserts an element into the quadtree.
@@ -227,67 +192,8 @@ cdef class Quadtree(object):
         >>> q3.insert(Point(1, 2))
 
         """
-        if self.is_tuple_or_list is None:
-            self.is_tuple_or_list =\
-                isinstance(elt, tuple) or isinstance(elt, list)
-            if self.is_tuple_or_list:
-                self.q.setXYFcts(c_getidx0, c_getidx1)
-            else:
-                self.q.setXYFcts(c_getx, c_gety)
-        Py_INCREF(elt)
-        self.q.insert(<void*> elt)
-
-    def iterate(self, lbd):
-        """ Iterates over elements in the quadtree.
-
-        You can provide a function or a lambda to be applied on all elements
-        of the quadtree. If you provided a polygon beforehand (see
-        set_mask), the function (resp. lambda) is only applied to elements
-        within the polygon.
-
-        If the function changes x-y coordinates of the element, it shall
-        be decorated with @movable_elt. If it does not change x-y coordinates,
-        it shall be decorated with @static_elt.
-
-        >>> @static_elt
-        ... def f_print(p):
-        ...     print (p)
-        >>> q.iterate(f_print)
-
-        If you want to print elements inside the following triangle:
-        >>> q.set_mask([ (0, 0), (1.5, 3), (3, 0) ])
-        >>> q.iterate(f_print)
-        """
-        global global_lbd
-        global_lbd = lbd
-        movable_flag = isinstance(global_lbd, movable_elt)
-        static_flag = isinstance(global_lbd, static_elt)
-        assert (movable_flag or static_flag),\
-            "You must decorate your function with @static_elt or @movable_elt"
-        global_flag = movable_flag
-        if self.p == NULL:
-            self.q.iterate(apply_lambda)
-        else:
-            self.q.iterate(self.p[0], apply_lambda)
-
-    def iterate_pair(self, lbd):
-        """ Iterates over pairs of neighbouring elements in the quadtree.
-
-        (see also: set_limitation)
-
-        The iterate_pair function provides a way to iterate over couples of
-        items in a neighbourhood defined by the current cell and
-        neighbouring cells. The set_limitation function lets you provide a
-        minimum size for each cell of the quadtree, in order to NOT miss any
-        neighbouring pair you would want to consider here.
-
-        >>> def f_close(p1, p2): print ([p1, p2])
-        >>> q.iterate_pair(f_close)
-
-        """
-        global global_lbd
-        global_lbd = lbd
-        self.q.iterate(apply_lambda_pair)
+        if self.q.insert(<long>(<void*> elt)):
+            Py_INCREF(elt)
 
     def size(self, ignore_mask = True):
         """ Yields the size of the quadtree.
@@ -302,15 +208,78 @@ cdef class Quadtree(object):
         >>> q.size(False)
 
         """
-        global global_lbd
-        self.count = 0
-        @static_elt
-        def fun_count(p):
-            self.count += 1
-        global_lbd = fun_count
-        if (ignore_mask or self.p == NULL):
-            self.q.iterate(apply_lambda)
+        return sum(1 for x in self.elements(ignore_mask))
+
+    def elements(self, ignore_mask = False):
+        """ Iterates over elements in the quadtree (generator).
+
+        You can iterate over all elements of the quadtree, and limit your
+        parsing to elements inside a polygon defined in `set_mask`.
+
+        As this method is a generator, elements are produced one by one and
+        their position is adjusted in the quadtree after you ask for the next
+        element. You are however certain never to get twice the same element.
+
+        >>> for x in q.elements():
+        >>>     print (x)
+
+        If you want to print elements inside the following triangle:
+        >>> q.set_mask([ (0, 0), (1.5, 3), (3, 0) ])
+        >>> for x in q.elements():
+        >>>     print (x)
+
+        You can ignore the mask with the `ignore_mask` parameter
+        (default: False)
+        >>> for x in q.elements(ignore_mask = True):
+        >>>     print (x)
+        """
+        cdef SmartQuadtree[long].iterator it
+        if self.p is NULL or ignore_mask:
+            it = self.q.begin()
         else:
-            self.q.iterate(self.p[0], apply_lambda)
-        return self.count
+            it = masked_begin(deref(self.q), self.p)
+        while (it != self.q.end()):
+            yield (<object>(<void*> deref(it)))
+            inc(it)
+
+    def neighbour_elements(self, ignore_mask = False):
+        """ Iterates over pair of neighbours in the quadtree (generator).
+
+        You can iterate over all pairs of elements of the quadtree, and limit
+        your parsing to elements inside a polygon defined in `set_mask`.
+
+        As this method is a generator, elements are produced one by one. Note
+        that if (a, b) is produced by the generator, (b, a) will not be yielded.
+
+        Be warned that if elements are moved through this iterator, the quadtree
+        will be obsolete. Therefore it is considered unsafe to use this iterator
+        to move the positions of elements.
+
+
+        >>> for a, b in q.neighbour_elements():
+        >>>     print (a, b)
+
+        If you want to print elements inside the following triangle:
+        >>> q.set_mask([ (0, 0), (1.5, 3), (3, 0) ])
+        >>> for a, b in q.neighbour_elements():
+        >>>     print (a, b)
+
+        You can ignore the mask with the `ignore_mask` parameter
+        (default: False)
+        >>> for a, b in q.neighbour_elements(ignore_mask = True):
+        >>>     print (a, b)
+        """
+        cdef SmartQuadtree[long].const_iterator it
+        if self.p is NULL or ignore_mask:
+            it = self.q.const_begin()
+        else:
+            it = masked_const_begin(deref(self.q), self.p)
+        cdef cpp_vector[const long*].const_iterator j
+        while (it != self.q.const_end()):
+            j = it.forward_begin()
+            while (j != it.forward_end()):
+                yield(<object>(<void*> deref(it)),
+                        <object>(<void*> deref(deref(j))))
+                inc(j)
+            inc(it)
 
