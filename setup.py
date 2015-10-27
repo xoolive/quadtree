@@ -29,3 +29,7 @@ setup(name="smartquadtree",
 # Producing long description
 # ipython nbconvert tutorial.ipynb --to rst
 # Then manually edit paths to images to point to github
+
+# Windows compilation (mingw)
+# edit smartquadtree.cpp
+# add #include <cmath> at the top of the file before #include "pyconfig.h"
