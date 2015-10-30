@@ -41,7 +41,7 @@ install (TARGETS smartquadtree
   DESTINATION lib
   INCLUDES DESTINATION include)
 
-install (FILES neighbour.h quadtree.h
+install (FILES neighbour.h quadtree.h quadtree.hpp
   DESTINATION include)
 
 install (EXPORT quadtree
