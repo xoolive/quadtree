@@ -265,8 +265,11 @@ public:
   //! Removes a data in current subtree
   void removeData(T& p);
 
+  //! Update the structure of the quadtree if an element moved from elsewhere
+  bool updateData(T& p);
+
   //! Returns true if the current cell may contain the data
-  bool contains(T& p) { return b.contains(&p); }
+  bool contains(const T& p) { return b.contains(p); }
 
   //! Returns the subquadrant pointed by location code
   SmartQuadtree<T>* getQuadrant(unsigned long location,
