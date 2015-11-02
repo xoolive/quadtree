@@ -279,7 +279,20 @@ void SmartQuadtree<T>::removeData(T& p)
   assert (e->points.end() != std::find(e->points.begin(), e->points.end(), p));
 
   e->points.remove(p);
-  ancestor->where.erase(p);
+  ancestor->where.erase(&p);
+}
+
+template<typename T>
+bool SmartQuadtree<T>::updateData(T& p)
+{
+  SmartQuadtree* e = ancestor->where[&p];
+  assert (e != NULL);
+  assert (e->points.end() != std::find(e->points.begin(), e->points.end(), p));
+
+  if (e->contains(p)) return false;
+  e->points.remove(p);
+  ancestor->insert(p);
+  return true;
 }
 
 template<typename T>
