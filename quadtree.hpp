@@ -319,7 +319,8 @@ SmartQuadtree<T>::const_iterator::const_iterator(
     assert(leafIterator != leafEnd ? it != itEnd : true);
     if (aux < 4)
       // This only happens if polygonmask is set
-      while (!polygonmask->pointInPolygon(BoundaryXY<T>::getX(*it),
+      while (leafIterator != leafEnd &&
+             !polygonmask->pointInPolygon(BoundaryXY<T>::getX(*it),
                                           BoundaryXY<T>::getY(*it)))
       {
         ++it;
@@ -505,7 +506,8 @@ SmartQuadtree<T>::iterator::iterator(
     assert(leafIterator != leafEnd ? it != itEnd : true);
     if (aux < 4)
       // This only happens if polygonmask is set
-      while (!polygonmask->pointInPolygon(BoundaryXY<T>::getX(*it),
+      while (leafIterator != leafEnd &&
+             !polygonmask->pointInPolygon(BoundaryXY<T>::getX(*it),
                                           BoundaryXY<T>::getY(*it)))
       {
         ++it;
