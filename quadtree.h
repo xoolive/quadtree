@@ -165,6 +165,28 @@ class Test_SmartQuadtree;
 template<typename T>
 std::ostream& operator<< (std::ostream&, const SmartQuadtree<T>&);
 
+/*
+ * It may be convenient to specialise this function if T is a class wrapping a
+ * pointer, like std::shared_ptr.
+ * In that case, you can write something like:
+ *
+ * template<>
+ * struct TypeDescriptor<shared_ptr<MyClass> >
+ * {
+ *   typedef MyClass* pointer;
+ *   typedef const MyClass* const_pointer;
+ *   static pointer getPtr(shared_ptr<MyClass>& p) { return p.get(); }
+ * };
+ */
+
+template<typename T> struct TypeDescriptor
+{
+  typedef T* pointer;
+  typedef const T* const_pointer;
+  static pointer getPtr(T& p) { return &p; }
+  static const_pointer getPtr(const T& p) { return &p; }
+};
+
 template<typename T>
 class SmartQuadtree
 {
@@ -195,7 +217,7 @@ class SmartQuadtree
   std::list<T> points;
 
   // We keep a map of who is where
-  std::unordered_map<T*, SmartQuadtree*> where;
+  std::unordered_map<typename TypeDescriptor<T>::pointer, SmartQuadtree*> where;
 
   // All leaves of the Quadtree, in order
   std::list<SmartQuadtree*> leaves;
@@ -332,15 +354,22 @@ struct SmartQuadtree<T>::const_iterator
   bool operator==(const const_iterator&) const;
   bool operator!=(const const_iterator&) const;
 
-  typename std::vector<const T*>::const_iterator forward_begin();
-  typename std::vector<const T*>::const_iterator forward_end();
+  typename
+    std::vector<typename TypeDescriptor<T>::const_pointer>::const_iterator
+    forward_begin();
+  typename
+    std::vector<typename TypeDescriptor<T>::const_pointer>::const_iterator
+    forward_end();
 
 private:
 
   typename std::list<SmartQuadtree<T>*>::const_iterator leafIterator, leafEnd;
   typename std::list<T>::const_iterator it, itEnd;
-  std::vector<const T*> forward_cells_neighbours;
-  typename std::vector<const T*>::const_iterator forward_cells_begin;
+  std::vector<typename TypeDescriptor<T>::const_pointer>
+    forward_cells_neighbours;
+  typename
+    std::vector<typename TypeDescriptor<T>::const_pointer>::const_iterator
+    forward_cells_begin;
 
   // Current leaf: number of covered summits
   unsigned char aux;
@@ -379,7 +408,7 @@ private:
   typename std::list<T>::iterator it, itEnd;
 
   // Elements already parsed
-  std::list<T*> already;
+  std::list<typename TypeDescriptor<T>::pointer> already;
 
   // Current leaf: number of covered summits
   unsigned char aux;

@@ -117,10 +117,10 @@ PolygonMask PolygonMask::clip(const Boundary& box) const
 
 bool Boundary::contains(float x, float y)
 {
-  return ((x < center_x + dim_x + FLT_EPSILON) &&
-          (x > center_x - dim_x - FLT_EPSILON) &&
-          (y < center_y + dim_y + FLT_EPSILON) &&
-          (y > center_y - dim_y - FLT_EPSILON));
+  return ((x < center_x + dim_x * 1.00001) &&
+          (x > center_x - dim_x * 1.00001) &&
+          (y < center_y + dim_y * 1.00001) &&
+          (y > center_y - dim_y * 1.00001));
 }
 
 int Boundary::coveredByPolygon(const PolygonMask& m) const
