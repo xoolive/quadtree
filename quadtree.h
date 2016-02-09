@@ -266,16 +266,16 @@ public:
   ~SmartQuadtree<T>();
 
   //! Iterator
-  SmartQuadtree<T>::iterator begin();
+  typename SmartQuadtree<T>::iterator begin();
 
   //! Iterator
-  SmartQuadtree<T>::iterator end();
+  typename SmartQuadtree<T>::iterator end();
 
   //! Iterator (const version)
-  SmartQuadtree<T>::const_iterator begin() const;
+  typename SmartQuadtree<T>::const_iterator begin() const;
 
   //! Iterator (const version)
-  SmartQuadtree<T>::const_iterator end() const;
+  typename SmartQuadtree<T>::const_iterator end() const;
 
   //! Find same level neighbour in determined direction
   SmartQuadtree<T>* samelevel(unsigned char) const;
