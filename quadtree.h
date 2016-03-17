@@ -217,7 +217,7 @@ class SmartQuadtree
   std::list<T> points;
 
   // We keep a map of who is where
-  std::unordered_map<typename TypeDescriptor<T>::pointer, SmartQuadtree*> where;
+  std::unordered_map<typename TypeDescriptor<T>::const_pointer, SmartQuadtree*> where;
 
   // All leaves of the Quadtree, in order
   std::list<SmartQuadtree*> leaves;
@@ -282,7 +282,7 @@ public:
 
   //! Insert one piece of data to the quadrant
   //! Returns true if the data has been inserted
-  bool insert(T);
+  typename TypeDescriptor<T>::const_pointer insert(T);
 
   //! Removes a data in current subtree
   void removeData(T& p);
@@ -408,7 +408,7 @@ private:
   typename std::list<T>::iterator it, itEnd;
 
   // Elements already parsed
-  std::list<typename TypeDescriptor<T>::pointer> already;
+  std::vector<typename TypeDescriptor<T>::const_pointer> already;
 
   // Current leaf: number of covered summits
   unsigned char aux;
