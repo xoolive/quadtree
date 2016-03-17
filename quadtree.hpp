@@ -113,16 +113,16 @@ typename SmartQuadtree<T>::iterator SmartQuadtree<T>::end()
 { return SmartQuadtree<T>::iterator(leaves.end(), leaves.end()); }
 
 template<typename T>
-bool SmartQuadtree<T>::insert(T pt)
+typename TypeDescriptor<T>::const_pointer SmartQuadtree<T>::insert(T pt)
 {
-  if (!b.contains(pt)) return false;
+  if (!b.contains(pt)) return NULL;
 
   // It is OK to go over capacity if a test "limitation" on b is verified
   if (b.limit || ((NULL == children[0]) && (points.size() < capacity)))
   {
     points.push_back(pt);
     ancestor->where[TypeDescriptor<T>::getPtr(points.back())] = this;
-    return true;
+    return TypeDescriptor<T>::getPtr(points.back());
   }
 
   if (NULL == children[0])
@@ -149,16 +149,26 @@ bool SmartQuadtree<T>::insert(T pt)
     //               [=](void* p) { this->insert(p); } );
     for (typename list<T>::iterator it = points.begin();
         it != points.end(); ++it)
+    {
+//       ancestor->where.erase(TypeDescriptor<T>::getPtr(*it));
       this->insert(*it);
+    }
     points.clear();
   }
 
-  if (children[0]->insert(pt)) return true;
-  if (children[1]->insert(pt)) return true;
-  if (children[2]->insert(pt)) return true;
-  if (children[3]->insert(pt)) return true;
+  typename TypeDescriptor<T>::const_pointer ptr0(children[0]->insert(pt));
+  if (ptr0 != NULL) return ptr0;
 
-  return false;
+  typename TypeDescriptor<T>::const_pointer ptr1(children[1]->insert(pt));
+  if (ptr1 != NULL) return ptr1;
+
+  typename TypeDescriptor<T>::const_pointer ptr2(children[2]->insert(pt));
+  if (ptr2 != NULL) return ptr2;
+
+  typename TypeDescriptor<T>::const_pointer ptr3(children[3]->insert(pt));
+  if (ptr3 != NULL) return ptr3;
+
+  return NULL;
 
 }
 
@@ -291,6 +301,7 @@ bool SmartQuadtree<T>::updateData(T& p)
 
   if (e->contains(p)) return false;
   e->points.remove(p);
+//   ancestor.where.erase(TypeDescriptor<T>::getPtr(p));
   ancestor->insert(p);
   return true;
 }
@@ -536,7 +547,6 @@ void SmartQuadtree<T>::iterator::advanceToNextLeaf()
     } while (it == itEnd);
 }
 
-
 template<typename T>
 typename SmartQuadtree<T>::iterator
 SmartQuadtree<T>::iterator::operator++()
@@ -550,12 +560,15 @@ SmartQuadtree<T>::iterator::operator++()
     SmartQuadtree<T>* previous =
       (*leafIterator)->ancestor->where[TypeDescriptor<T>::getPtr(*it)];
     assert (previous != NULL);
-    (*leafIterator)->ancestor->insert(*it);
-    SmartQuadtree<T>* current =
-      (*leafIterator)->ancestor->where[TypeDescriptor<T>::getPtr(*it)];
+
+    typename TypeDescriptor<T>::const_pointer newpos((*leafIterator)->ancestor->insert(*it));
+    SmartQuadtree<T>* current = (*leafIterator)->ancestor->where[newpos];
     assert (current != NULL);
+
+    (*leafIterator)->ancestor->where.erase(TypeDescriptor<T>::getPtr(*it));
+
     if (current->location > previous->location)
-      already.push_back(TypeDescriptor<T>::getPtr(*it));
+      already.push_back(newpos);
     it = (*leafIterator)->points.erase(it);
   }
   else
