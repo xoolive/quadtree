@@ -31,10 +31,10 @@ private:
   int size;
 
   //! Coordinates of the vertices of the polygon
-  std::vector<float> polyX, polyY;
+  std::vector<double> polyX, polyY;
 
   //! Auxiliary variables
-  std::vector<float> constant, multiple;
+  std::vector<double> constant, multiple;
 
   // see http://alienryderflex.com/polygon/
   void precompute();
@@ -42,14 +42,14 @@ private:
 public:
 
   //! Constructor
-  PolygonMask(std::vector<float> x, std::vector<float> y, int size);
+  PolygonMask(std::vector<double> x, std::vector<double> y, int size);
 
   //! Return the number of vertices of the polygon
   int getSize() const { return size; }
 
   //! Returns whether a point of coordinates (x, y) is inside the polygon
   // see http://alienryderflex.com/polygon/
-  bool pointInPolygon(float x, float y) const;
+  bool pointInPolygon(double x, double y) const;
 
   //! Returns a different polygon mask clipped by the boundary box
   // see http://en.wikipedia.org/wiki/Sutherland%E2%80%93Hodgman_algorithm
@@ -75,10 +75,10 @@ struct BoundaryLimit
 class Boundary
 {
   //! Coordinates for the center of the box
-  float center_x, center_y ;
+  double center_x, center_y ;
 
   //! Dimension from the center to the border of the box
-  float dim_x, dim_y;
+  double dim_x, dim_y;
 
   //! Store the result of limitation in order to avoid recomputation
   bool limit;
@@ -89,7 +89,7 @@ class Boundary
 public:
 
   //! Default constructor
-  Boundary(float cx, float cy, float dx, float dy) :
+  Boundary(double cx, double cy, double dx, double dy) :
     center_x(cx), center_y(cy), dim_x(dx), dim_y(dy), limit(false) {};
 
   Boundary(const Boundary& b) :
@@ -97,7 +97,7 @@ public:
     dim_x(b.dim_x), dim_y(b.dim_y), limit(false) {};
 
   //! Is this point included in the box?
-  bool contains(float x, float y);
+  bool contains(double x, double y);
 
   //! Is this data included in the box?
   template<typename T>
@@ -105,53 +105,53 @@ public:
   { return contains(BoundaryXY<T>::getX(pt), BoundaryXY<T>::getY(pt)); }
 
   //! Returns the x-coordinate of the center of the boundary box
-  inline float getX() const { return center_x; }
+  inline double getX() const { return center_x; }
 
   //! Returns the y-coordinate of the center of the boundary box
-  inline float getY() const { return center_y; }
+  inline double getY() const { return center_y; }
 
   //! Returns the x dimension of the boundary box
-  inline float getDimX() const { return dim_x; }
+  inline double getDimX() const { return dim_x; }
 
   //! Returns the y dimension of the boundary box
-  inline float getDimY() const { return dim_y; }
+  inline double getDimY() const { return dim_y; }
 
   //! L1 norm
-  inline float norm_l1() const { return (dim_x + dim_y); }
+  inline double norm_l1() const { return (dim_x + dim_y); }
 
   //! Max distance between two data in the box
-  inline float norm_infty() const { return (dim_x < dim_y ? dim_x : dim_y); }
+  inline double norm_infty() const { return (dim_x < dim_y ? dim_x : dim_y); }
 
   //! Returns true if the coordinates are left of the boundary box
-  bool leftOf(float x, float y) const { return (x < center_x-dim_x-1e-4); }
+  bool leftOf(double x, double y) const { return (x < center_x-dim_x-1e-4); }
 
   //! Returns true if the coordinates are right of the boundary box
-  bool rightOf(float x, float y) const { return (x > center_x+dim_x+1e-4); }
+  bool rightOf(double x, double y) const { return (x > center_x+dim_x+1e-4); }
 
   //! Returns true if the coordinates are bottom of the boundary box
-  bool bottomOf(float x, float y) const { return (y < center_y-dim_y-1e-4); }
+  bool bottomOf(double x, double y) const { return (y < center_y-dim_y-1e-4); }
 
   //! Returns true if the coordinates are up of the boundary box
-  bool upOf(float x, float y) const { return (y > center_y+dim_y+1e-4); }
+  bool upOf(double x, double y) const { return (y > center_y+dim_y+1e-4); }
 
   //! Returns the intersection with the left boundary of the box
-  void interLeft(float, float, float, float, float&, float&);
+  void interLeft(double, double, double, double, double&, double&);
 
   //! Returns the intersection with the right boundary of the box
-  void interRight(float, float, float, float, float&, float&);
+  void interRight(double, double, double, double, double&, double&);
 
   //! Returns the intersection with the bottom boundary of the box
-  void interBottom(float, float, float, float, float&, float&);
+  void interBottom(double, double, double, double, double&, double&);
 
   //! Returns the intersection with the up boundary of the box
-  void interUp(float, float, float, float, float&, float&);
+  void interUp(double, double, double, double, double&, double&);
 
   //! Types of methods leftOf, rightOf, bottomOf, upOf
-  typedef bool (Boundary::*OUTSIDE_TEST) (float, float) const;
+  typedef bool (Boundary::*OUTSIDE_TEST) (double, double) const;
 
   //! Types of methods interLeft, interRight, interBottom, interUp
   typedef bool (Boundary::*INTERSECT)
-    (float, float, float, float, float&, float&) const;
+    (double, double, double, double, double&, double&) const;
 
   template<typename T> friend class SmartQuadtree;
   template<typename T>
@@ -245,7 +245,7 @@ public:
   struct iterator;
 
   //! Constructor
-  SmartQuadtree<T>(float center_x, float center_y, float dim_x, float dim_y,
+  SmartQuadtree<T>(double center_x, double center_y, double dim_x, double dim_y,
                 unsigned int capacity) :
     b(center_x, center_y, dim_x, dim_y), location(0), level(0),
     capacity(capacity), ancestor(this)

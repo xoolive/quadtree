@@ -1,6 +1,6 @@
 #include "quadtree.h"
 
-#include <cfloat> // FLT_EPSILON
+#include <cfloat> // DBL_EPSILON
 
 void PolygonMask::precompute()
 {
@@ -28,11 +28,11 @@ void PolygonMask::precompute()
   }
 }
 
-PolygonMask::PolygonMask(std::vector<float> x, std::vector<float> y,
+PolygonMask::PolygonMask(std::vector<double> x, std::vector<double> y,
                          int size) : size(size), polyX(x), polyY(y)
 { precompute(); }
 
-bool PolygonMask::pointInPolygon(float x, float y) const
+bool PolygonMask::pointInPolygon(double x, double y) const
 {
   // see http://alienryderflex.com/polygon/
   int i, j = size - 1;
@@ -48,10 +48,10 @@ bool PolygonMask::pointInPolygon(float x, float y) const
   return oddNodes;
 }
 /*
-std::ostream& operator<<(std::ostream& out, std::vector<float> x)
+std::ostream& operator<<(std::ostream& out, std::vector<double> x)
 {
   out << "[";
-  std::vector<float>::iterator it = x.begin(), ie = x.end();
+  std::vector<double>::iterator it = x.begin(), ie = x.end();
   for( ; it != ie ; ++it, out<<",")
     out << *it;
   out << "]";
@@ -62,7 +62,7 @@ std::ostream& operator<<(std::ostream& out, std::vector<float> x)
 PolygonMask PolygonMask::clip(const Boundary& box) const
 {
   // http://en.wikipedia.org/wiki/Sutherland%E2%80%93Hodgman_algorithm
-  std::vector<float> xIn, yIn, xOut = polyX, yOut = polyY;
+  std::vector<double> xIn, yIn, xOut = polyX, yOut = polyY;
 
   std::vector<Boundary::OUTSIDE_TEST> outsideTest;
   outsideTest.push_back((Boundary::OUTSIDE_TEST) &Boundary::leftOf);
@@ -81,9 +81,9 @@ PolygonMask PolygonMask::clip(const Boundary& box) const
   {
     xIn = xOut; yIn = yOut; xOut.clear(); yOut.clear();
     if (xIn.size() == 0) break;
-    float xfrom = xIn.back(), yfrom = yIn.back();
-    std::vector<float>::iterator xpoly = xIn.begin(), ypoly = yIn.begin();
-    std::vector<float>::iterator xend = xIn.end();
+    double xfrom = xIn.back(), yfrom = yIn.back();
+    std::vector<double>::iterator xpoly = xIn.begin(), ypoly = yIn.begin();
+    std::vector<double>::iterator xend = xIn.end();
 
     // for each edge of the polygon
     for ( ; xpoly != xend ; ++xpoly, ++ypoly)
@@ -92,7 +92,7 @@ PolygonMask PolygonMask::clip(const Boundary& box) const
       {
         if ((box.*outsideTest[i])(xfrom, yfrom))
         {
-          float x, y;
+          double x, y;
           (box.*intersect[i])(xfrom, yfrom, *xpoly, *ypoly, x, y);
           if ((x != *xpoly)||(y != *ypoly))
           {xOut.push_back(x); yOut.push_back(y);}
@@ -101,7 +101,7 @@ PolygonMask PolygonMask::clip(const Boundary& box) const
       }
       else if (!(box.*outsideTest[i])(xfrom, yfrom))
       {
-        float x, y;
+        double x, y;
         (box.*intersect[i])(xfrom, yfrom, *xpoly, *ypoly, x, y);
         if ((x != xfrom)||(y != yfrom))
         { xOut.push_back(x); yOut.push_back(y); }
@@ -115,7 +115,7 @@ PolygonMask PolygonMask::clip(const Boundary& box) const
 }
 
 
-bool Boundary::contains(float x, float y)
+bool Boundary::contains(double x, double y)
 {
   return ((x < center_x + dim_x * 1.00001) &&
           (x > center_x - dim_x * 1.00001) &&
@@ -135,31 +135,30 @@ int Boundary::coveredByPolygon(const PolygonMask& m) const
   return nb;
 }
 
-void Boundary::interLeft(float x1, float y1, float x2, float y2,
-                         float& xout, float& yout)
+void Boundary::interLeft(double x1, double y1, double x2, double y2,
+                         double& xout, double& yout)
 {
   xout = center_x - dim_x;
   yout = y1 + (xout - x1) / (x2 - x1) * (y2 - y1);
 }
 
-void Boundary::interRight(float x1, float y1, float x2, float y2,
-                          float& xout, float& yout)
+void Boundary::interRight(double x1, double y1, double x2, double y2,
+                          double& xout, double& yout)
 {
   xout = center_x + dim_x;
   yout = y1 + (xout - x1) / (x2 - x1) * (y2 - y1);
 }
 
-void Boundary::interBottom(float x1, float y1, float x2, float y2,
-                           float& xout, float& yout)
+void Boundary::interBottom(double x1, double y1, double x2, double y2,
+                           double& xout, double& yout)
 {
   yout = center_y - dim_y;
   xout = x1 + (yout - y1) / (y2 - y1) * (x2 - x1);
 }
 
-void Boundary::interUp(float x1, float y1, float x2, float y2,
-                       float& xout, float& yout)
+void Boundary::interUp(double x1, double y1, double x2, double y2,
+                       double& xout, double& yout)
 {
   yout = center_y + dim_y;
   xout = x1 + (yout - y1) / (y2 - y1) * (x2 - x1);
 }
-

@@ -31,7 +31,7 @@ cdef extern from *:
 
 cdef extern from "quadtree.h":
     cdef cppclass PolygonMask:
-        PolygonMask(vector[float], vector[float], int)
+        PolygonMask(vector[double], vector[double], int)
     cdef cppclass SmartQuadtree[T]:
         cppclass const_iterator:
             const_iterator()
@@ -47,7 +47,7 @@ cdef extern from "quadtree.h":
             iterator operator++()
             bint operator==(iterator)
             bint operator!=(iterator)
-        SmartQuadtree(float, float, float, float, unsigned int)
+        SmartQuadtree(double, double, double, double, unsigned int)
         cppbool insert(T)
         iterator begin()
         iterator end()
@@ -143,7 +143,7 @@ cdef class Quadtree(object):
         >>> q.set_mask(None)
 
         """
-        cdef vector[float] vec_x, vec_y
+        cdef vector[double] vec_x, vec_y
         if self.p != NULL:
             del self.p
             self.p = NULL
@@ -282,4 +282,3 @@ cdef class Quadtree(object):
                         <object>(<void*> deref(deref(j))))
                 inc(j)
             inc(it)
-
